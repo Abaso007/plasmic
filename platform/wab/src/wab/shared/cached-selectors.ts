@@ -1,32 +1,4 @@
 import {
-  ArenaFrame,
-  CodeLibrary,
-  Component,
-  ComponentSwapSplitContent,
-  ComponentVariantSplitContent,
-  CustomFunction,
-  DataSourceOpExpr,
-  GlobalVariantSplitContent,
-  ImageAsset,
-  isKnownCustomCode,
-  isKnownDataSourceOpExpr,
-  isKnownImageAssetRef,
-  isKnownQueryInvalidationExpr,
-  isKnownVarRef,
-  Mixin,
-  Param,
-  QueryInvalidationExpr,
-  RuleSet,
-  Site,
-  StyleToken,
-  TplComponent,
-  TplNode,
-  TplSlot,
-  Variant,
-  VariantGroup,
-  VariantSetting,
-} from "@/wab/classes";
-import {
   customInsertMaps,
   ensure,
   ensureArray,
@@ -37,7 +9,7 @@ import {
   withoutNils,
   xAddAll,
   xSetDefault,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import {
   extractAllReferencedTokenIds,
   ResolvedToken,
@@ -53,17 +25,18 @@ import {
   getNonVariantParams,
   isCodeComponent,
   isPlumeComponent,
+  PageComponent,
   tryGetVariantGroupValueFromArg,
-} from "@/wab/components";
-import { getProjectFlags } from "@/wab/devflags";
-import { isRealCodeExpr } from "@/wab/exprs";
-import { ImageAssetType } from "@/wab/image-asset-type";
+} from "@/wab/shared/core/components";
+import { getProjectFlags } from "@/wab/shared/devflags";
+import { isRealCodeExpr } from "@/wab/shared/core/exprs";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
 import {
   extractAllAssetRefs,
   getTagAttrForImageAsset,
-} from "@/wab/image-assets";
-import { ParamExportType } from "@/wab/lang";
-import { walkDependencyTree } from "@/wab/project-deps";
+} from "@/wab/shared/core/image-assets";
+import { ParamExportType } from "@/wab/shared/core/lang";
+import { walkDependencyTree } from "@/wab/shared/core/project-deps";
 import {
   getBuiltinComponentRegistrations,
   isBuiltinCodeComponent,
@@ -72,6 +45,10 @@ import {
   CustomFunctionId,
   customFunctionId,
 } from "@/wab/shared/code-components/code-components";
+import {
+  getInteractionVariantMeta,
+  isTplRootWithCodeComponentInteractionVariants,
+} from "@/wab/shared/code-components/interaction-variants";
 import {
   buildUidToNameMap,
   getNamedDescendantNodes,
@@ -82,6 +59,37 @@ import {
 import { validJsIdentifierChars } from "@/wab/shared/codegen/util";
 import mobx from "@/wab/shared/import-mobx";
 import { keyedComputedFn, maybeComputedFn } from "@/wab/shared/mobx-util";
+import {
+  ArenaFrame,
+  CodeLibrary,
+  Component,
+  ComponentSwapSplitContent,
+  ComponentVariantSplitContent,
+  CustomFunction,
+  DataSourceOpExpr,
+  Expr,
+  GlobalVariantSplitContent,
+  ImageAsset,
+  isKnownCustomCode,
+  isKnownDataSourceOpExpr,
+  isKnownImageAssetRef,
+  isKnownPageHref,
+  isKnownQueryInvalidationExpr,
+  isKnownVarRef,
+  Mixin,
+  PageHref,
+  Param,
+  QueryInvalidationExpr,
+  RuleSet,
+  Site,
+  StyleToken,
+  TplComponent,
+  TplNode,
+  TplSlot,
+  Variant,
+  VariantGroup,
+  VariantSetting,
+} from "@/wab/shared/model/classes";
 import { FramePinManager } from "@/wab/shared/PinManager";
 import { readonlyRSH } from "@/wab/shared/RuleSetHelpers";
 import {
@@ -91,7 +99,9 @@ import {
 import { VariantedStylesHelper } from "@/wab/shared/VariantedStylesHelper";
 import {
   isPrivateStyleVariant,
+  isStyleVariant,
   isVariantSettingEmpty,
+  StyleVariant,
   VariantCombo,
   variantComboKey,
 } from "@/wab/shared/Variants";
@@ -102,9 +112,9 @@ import {
   allImageAssets,
   allStyleTokens,
   isHostLessPackage,
-} from "@/wab/sites";
-import { isOnChangeParam } from "@/wab/states";
-import { expandRuleSets } from "@/wab/styles";
+} from "@/wab/shared/core/sites";
+import { isOnChangeParam } from "@/wab/shared/core/states";
+import { expandRuleSets } from "@/wab/shared/core/styles";
 import {
   findExprsInComponent,
   findExprsInNode,
@@ -113,10 +123,8 @@ import {
   isTplIcon,
   isTplPicture,
   isTplVariantable,
-} from "@/wab/tpls";
-import L from "lodash";
-
-const { comparer, computed } = mobx;
+} from "@/wab/shared/core/tpls";
+import { keyBy } from "lodash";
 
 export const flattenComponent = maybeComputedFn(function flattenComponent(
   component: Component
@@ -482,6 +490,23 @@ const _componentToDeepReferenced = maybeComputedFn(
   }
 );
 
+export const componentsReferecerToPageHref = maybeComputedFn(
+  function componentsReferecerToPageHref(site: Site, page: PageComponent) {
+    const isHRefToPage = (expr: Expr | null | undefined): expr is PageHref =>
+      isKnownPageHref(expr) && expr.page == page;
+
+    const usingComponents = new Set<Component>();
+
+    for (const c of site.components) {
+      const exprs = cachedExprsInComponent(c);
+      if (exprs.some(({ expr }) => isHRefToPage(expr))) {
+        usingComponents.add(c);
+      }
+    }
+    return usingComponents;
+  }
+);
+
 export const allCustomFunctions = maybeComputedFn(function allCustomFunctions(
   rootSite: Site
 ) {
@@ -701,7 +726,7 @@ export const makeTokenRefResolver = maybeComputedFn(
 );
 
 export const siteToAllTokensDict = maybeComputedFn((site: Site) =>
-  L.keyBy(siteToAllTokens(site), (t) => t.uuid)
+  keyBy(siteToAllTokens(site), (t) => t.uuid)
 );
 
 export const siteToAllTokens = maybeComputedFn((site: Site) =>
@@ -718,7 +743,7 @@ export const siteToAllDirectTokensOfType = maybeComputedFn(
 );
 
 export const siteToAllImageAssetsDict = maybeComputedFn((site: Site) =>
-  L.keyBy(allImageAssets(site, { includeDeps: "all" }), (x) => x.uuid)
+  keyBy(allImageAssets(site, { includeDeps: "all" }), (x) => x.uuid)
 );
 
 export const componentToUsedTokens = maybeComputedFn(
@@ -998,6 +1023,7 @@ export const findComponentsUsingComponentVariant = maybeComputedFn(
         results.add(comp);
       }
     }
+
     return results;
   }
 );
@@ -1008,7 +1034,7 @@ export const findComponentsUsingGlobalVariant = maybeComputedFn(
 
     const compUsesVariant = (comp: Component) => {
       for (const [vs] of extractComponentVariantSettings(site, comp, false)) {
-        if (vs.variants.includes(variant) && !isVariantSettingEmpty(vs)) {
+        if (vs.variants.includes(variant)) {
           return true;
         }
       }
@@ -1020,6 +1046,7 @@ export const findComponentsUsingGlobalVariant = maybeComputedFn(
         results.add(comp);
       }
     }
+
     return results;
   }
 );
@@ -1037,6 +1064,20 @@ export const findSplitsUsingVariantGroup = maybeComputedFn(
             )
             .result()
         )
+      )
+    );
+  }
+);
+
+export const findStyleTokensUsingVariantGroup = maybeComputedFn(
+  function findStyleTokensUsingVariantGroup(
+    site: Site,
+    variantGroup: VariantGroup
+  ) {
+    const groupVariants = new Set(variantGroup.variants);
+    return site.styleTokens.filter((token) =>
+      token.variantedValues.some((value) =>
+        value.variants.some((variant) => groupVariants.has(variant))
       )
     );
   }
@@ -1118,5 +1159,40 @@ export const siteToUsedDataSources = maybeComputedFn(
     const entries = [...dataSourceCount.entries()];
     entries.sort((a, b) => b[1] - a[1]);
     return entries.map((entry) => entry[0]);
+  }
+);
+
+const componentCCInteractionStyleVariantsToDisplayNames = maybeComputedFn(
+  function ccStyleVariantToDisplayNames(component: Component) {
+    const tplRoot = component.tplTree;
+    if (isTplRootWithCodeComponentInteractionVariants(tplRoot)) {
+      const interactionVariantMeta =
+        tplRoot.component.codeComponentMeta.interactionVariantMeta;
+      return component.variants
+        .filter(isStyleVariant)
+        .map((variant): [StyleVariant, string[]] => {
+          return [
+            variant,
+            withoutNils(
+              variant.selectors.map(
+                (selector) =>
+                  getInteractionVariantMeta(interactionVariantMeta, selector)
+                    ?.displayName
+              )
+            ),
+          ];
+        });
+    }
+    return [];
+  }
+);
+
+export const siteCCInteractionStyleVariantsToDisplayNames = maybeComputedFn(
+  function ccStyleVariantToDisplayNames(site: Site) {
+    return new Map<StyleVariant, string[]>(
+      site.components.flatMap((comp) =>
+        componentCCInteractionStyleVariantsToDisplayNames(comp)
+      )
+    );
   }
 );

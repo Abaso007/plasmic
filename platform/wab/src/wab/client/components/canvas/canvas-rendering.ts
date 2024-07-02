@@ -1,52 +1,4 @@
 import {
-  CollectionExpr,
-  Component,
-  ComponentDataQuery,
-  CompositeExpr,
-  CustomCode,
-  DataSourceOpExpr,
-  ensureKnownNamedState,
-  EventHandler,
-  Expr,
-  FunctionArg,
-  FunctionExpr,
-  ImageAssetRef,
-  isKnownColorPropType,
-  isKnownCustomCode,
-  isKnownDefaultStylesClassNamePropType,
-  isKnownDefaultStylesPropType,
-  isKnownEventHandler,
-  isKnownNamedState,
-  isKnownObjectPath,
-  isKnownStateParam,
-  isKnownStyleExpr,
-  isKnownStyleScopeClassNamePropType,
-  isKnownTplTag,
-  MapExpr,
-  Marker,
-  ObjectPath,
-  PageHref,
-  Param,
-  QueryInvalidationExpr,
-  RenderExpr,
-  Site,
-  State,
-  StrongFunctionArg,
-  StyleExpr,
-  StyleTokenRef,
-  TemplatedString,
-  TplComponent,
-  TplNode,
-  TplRef,
-  TplSlot,
-  TplTag,
-  Variant,
-  VariantSetting,
-  VariantsRef,
-  VarRef,
-  VirtualRenderExpr,
-} from "@/wab/classes";
-import {
   cachedRenderTplNode,
   reactHookSpecsToKey,
 } from "@/wab/client/components/canvas/canvas-cache";
@@ -98,19 +50,19 @@ import {
   unexpected,
   withDefaultFunc,
   withoutNils,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { mkTokenRef } from "@/wab/commons/StyleToken";
 import { DeepReadonly } from "@/wab/commons/types";
 import {
   allComponentVariants,
-  ComponentType,
   getComponentDisplayName,
+  getRepetitionElementName,
   getRepetitionIndexName,
   isCodeComponent,
   isHostLessCodeComponent,
-} from "@/wab/components";
-import { uniqifyClassName } from "@/wab/css";
-import { DEVFLAGS, DevFlagsType } from "@/wab/devflags";
+} from "@/wab/shared/core/components";
+import { uniqifyClassName } from "@/wab/shared/css";
+import { DEVFLAGS, DevFlagsType } from "@/wab/shared/devflags";
 import {
   asCode,
   code,
@@ -123,9 +75,9 @@ import {
   isInteractionLoc,
   isRealCodeExpr,
   removeFallbackFromDataSourceOp,
-} from "@/wab/exprs";
-import { mkParam } from "@/wab/lang";
-import { makeSelectableKey } from "@/wab/selection";
+} from "@/wab/shared/core/exprs";
+import { mkParam } from "@/wab/shared/core/lang";
+import { makeSelectableKey } from "@/wab/shared/core/selection";
 import {
   componenToNonVariantParamNames,
   componentToElementNames,
@@ -161,6 +113,10 @@ import {
   isPlainObjectPropType,
   tryGetStateHelpers,
 } from "@/wab/shared/code-components/code-components";
+import {
+  isTplRootWithCodeComponentInteractionVariants,
+  withoutInteractionVariantPrefix,
+} from "@/wab/shared/code-components/interaction-variants";
 import { toReactAttr } from "@/wab/shared/codegen/image-assets";
 import {
   deriveReactHookSpecs,
@@ -184,16 +140,65 @@ import {
   NodeNamer,
 } from "@/wab/shared/codegen/react-p/utils";
 import { paramToVarName, toVarName } from "@/wab/shared/codegen/util";
-import { isRenderFuncType, typeFactory } from "@/wab/shared/core/model-util";
 import { plasmicImgAttrStyles } from "@/wab/shared/core/style-props";
 import { parseDataUrlToSvgXml } from "@/wab/shared/data-urls";
 import {
   EffectiveVariantSetting,
   getEffectiveVariantSetting,
 } from "@/wab/shared/effective-variant-setting";
+import { stampIgnoreError } from "@/wab/shared/error-handling";
 import { CanvasEnv, evalCodeWithEnv } from "@/wab/shared/eval";
 import { exprUsesCtxOrFreeVars } from "@/wab/shared/eval/expression-parser";
 import { ContainerType } from "@/wab/shared/layoututils";
+import {
+  CollectionExpr,
+  Component,
+  ComponentDataQuery,
+  CompositeExpr,
+  CustomCode,
+  DataSourceOpExpr,
+  ensureKnownNamedState,
+  EventHandler,
+  Expr,
+  FunctionArg,
+  FunctionExpr,
+  ImageAssetRef,
+  isKnownColorPropType,
+  isKnownCustomCode,
+  isKnownDefaultStylesClassNamePropType,
+  isKnownDefaultStylesPropType,
+  isKnownEventHandler,
+  isKnownNamedState,
+  isKnownObjectPath,
+  isKnownStateParam,
+  isKnownStyleExpr,
+  isKnownStyleScopeClassNamePropType,
+  isKnownTplTag,
+  MapExpr,
+  Marker,
+  ObjectPath,
+  PageHref,
+  Param,
+  QueryInvalidationExpr,
+  RenderExpr,
+  Site,
+  State,
+  StrongFunctionArg,
+  StyleExpr,
+  StyleTokenRef,
+  TemplatedString,
+  TplComponent,
+  TplNode,
+  TplRef,
+  TplSlot,
+  TplTag,
+  Variant,
+  VariantSetting,
+  VariantsRef,
+  VarRef,
+  VirtualRenderExpr,
+} from "@/wab/shared/model/classes";
+import { isRenderFuncType, typeFactory } from "@/wab/shared/model/model-util";
 import { canAddChildren } from "@/wab/shared/parenting";
 import {
   getPlumeCanvasPlugin,
@@ -235,7 +240,7 @@ import {
   isWritableState,
   shouldHaveImplicitState,
   StateVariableType,
-} from "@/wab/states";
+} from "@/wab/shared/core/states";
 import {
   classNameForRuleSet,
   defaultStyleClassNames,
@@ -246,7 +251,7 @@ import {
   makeStyleExprClassName,
   makeStyleScopeClassName,
   studioDefaultStylesClassNameBase,
-} from "@/wab/styles";
+} from "@/wab/shared/core/styles";
 import {
   ancestorsUp,
   getOwnerSite,
@@ -265,8 +270,8 @@ import {
   summarizeTpl,
   tplHasRef,
   TplTextTag,
-} from "@/wab/tpls";
-import { placeholderImgUrl } from "@/wab/urls";
+} from "@/wab/shared/core/tpls";
+import { placeholderImgUrl } from "@/wab/shared/urls";
 import type { usePlasmicInvalidate } from "@plasmicapp/data-sources";
 import { DataDict, mkMetaName } from "@plasmicapp/host";
 import { $StateSpec } from "@plasmicapp/react-web";
@@ -329,6 +334,10 @@ export interface RenderingCtx {
 
   plasmicInvalidate: ReturnType<typeof usePlasmicInvalidate> | undefined;
   stateSpecs: $StateSpec<any>[];
+
+  // This is used to enable code components interaction variants in the canvas
+  $ccInteractions: Record<string, boolean>;
+  updateInteractionVariant: (changes: Record<string, boolean>) => void;
 }
 
 interface CanvasComponentProps
@@ -468,7 +477,7 @@ export function mkEventHandlerEnv(
         return fn();
       } catch (error) {
         trapInteractionError(studioCtx, loc, error);
-        error.__wab_error_handled = true;
+        stampIgnoreError(error);
         throw error;
       }
     },
@@ -480,7 +489,7 @@ export function mkEventHandlerEnv(
         return await promise;
       } catch (error) {
         trapInteractionError(studioCtx, loc, error);
-        error.__wab_error_handled = true;
+        stampIgnoreError(error);
         throw error;
       }
     },
@@ -675,18 +684,39 @@ const mkTriggers = computedFn(
         sub,
         viewCtx
       )(() => {
+        const isInteractive = ctx.viewCtx.studioCtx.isInteractiveMode;
+
         const { triggers, triggerProps } = useTriggers(
           ctx.viewCtx.canvasCtx,
           ctx.reactHookSpecs,
-          ctx.viewCtx.studioCtx.isInteractiveMode
+          isInteractive
         );
+
         const newCtx: RenderingCtx = {
           ...ctx,
           triggerProps,
           activeVariants: new Set([
             ...ctx.activeVariants.keys(),
             ...component.variants.filter((variant) => {
-              if (isStyleVariant(variant)) {
+              // We include the style variants dynamically here to handle changes that require JS
+              // to be re-run. For handling changes that only require CSS, we generate the proper
+              // CSS classes in `genCanvasRules`. Those can only be applied in interactive mode,
+              // because we don't want the content to change when the user tries to edit rich text
+              // while in design mode.
+              if (isStyleVariant(variant) && isInteractive) {
+                if (
+                  isTplRootWithCodeComponentInteractionVariants(
+                    component.tplTree
+                  )
+                ) {
+                  return variant.selectors.reduce(
+                    (prev, key) =>
+                      prev &&
+                      ctx.$ccInteractions[withoutInteractionVariantPrefix(key)],
+                    true
+                  );
+                }
+
                 const hook = ctx.reactHookSpecs.find(
                   (spec) => spec.sv === variant
                 );
@@ -867,6 +897,22 @@ function useCtxFromInternalComponentProps(
   const refsRef = sub.React.useRef({});
   const $refs = refsRef.current;
 
+  // We will use $ccInteractions to store the interactions that are triggered
+  // by the code component root, to keep the number of hooks stable. We will
+  // always create these values during the canvas component initialization.
+  const [$ccInteractions, setDollarCcInteractions] = sub.React.useState({});
+  const updateInteractionVariant = sub.React.useCallback(
+    (changes: Record<string, boolean>) => {
+      setDollarCcInteractions((prev) => {
+        if (!Object.keys(changes).some((k) => prev[k] !== changes[k])) {
+          return prev;
+        }
+        return { ...prev, ...changes };
+      });
+    },
+    []
+  );
+
   const $globalActions = sub.useGlobalActions?.();
 
   const env = {
@@ -961,6 +1007,8 @@ function useCtxFromInternalComponentProps(
       viewState.forceValComponentKeysWithDefaultSlotContents,
     setDollarQueries,
     stateSpecs,
+    $ccInteractions,
+    updateInteractionVariant,
   };
   return ctx;
 }
@@ -1168,6 +1216,8 @@ function makeEmptyRenderingCtx(viewCtx: ViewCtx, valKey: string): RenderingCtx {
     setDollarQueries: () => {},
     stateSpecs: [],
     plasmicInvalidate: undefined,
+    $ccInteractions: {},
+    updateInteractionVariant: () => {},
   };
 }
 
@@ -1215,7 +1265,7 @@ function renderReppable(tplNode: TplNode, ctx: RenderingCtx) {
               ...ctx,
               env: {
                 ...ctx.env,
-                [dataRep.element.name]: item,
+                [getRepetitionElementName(dataRep)]: item,
                 [getRepetitionIndexName(dataRep)]: index,
                 [elementInternalName]: item,
                 [indexInternalName]: index,
@@ -1382,6 +1432,13 @@ function renderTplComponent(
     props[setControlContextDataProp] = ctx.viewCtx.createSetContextDataFn(
       ctx.valKey
     );
+
+    if (
+      isComponentRoot &&
+      isTplRootWithCodeComponentInteractionVariants(node)
+    ) {
+      props["updateInteractionVariant"] = ctx.updateInteractionVariant;
+    }
 
     if (meta) {
       for (const [prop, propMeta] of Object.entries(meta.meta.props)) {
@@ -1571,6 +1628,7 @@ function renderTplComponent(
       );
     }
   });
+
   if (tplHasRef(node)) {
     const refProp = node.component.codeComponentMeta?.refProp ?? "ref";
     props[refProp] = (ref: any) =>
@@ -1578,6 +1636,7 @@ function renderTplComponent(
         ensure(ctx.nodeNamer?.(node), `Only named tpls can have ref`)
       ] = ref);
   }
+
   if (
     meta &&
     ctx.ownerComponent &&
@@ -1800,9 +1859,7 @@ function computeTplComponentArgs(
       })
       .when(CustomCode, (_expr) => {
         return evalCodeWithEnv(
-          isRealCodeExpr(_expr)
-            ? getCodeExpressionWithFallback(_expr, exprCtx)
-            : _expr.code,
+          getCodeExpressionWithFallback(_expr, exprCtx),
           ctx.env,
           ctx.viewCtx.canvasCtx.win()
         );
@@ -1905,7 +1962,7 @@ function computeTplComponentArgs(
       })
       .when(TemplatedString, (templatedString) =>
         evalCodeWithEnv(
-          asCode(templatedString, exprCtx).code,
+          getRawCode(templatedString, exprCtx),
           ctx.env,
           ctx.viewCtx.canvasCtx.win()
         )
@@ -2974,11 +3031,19 @@ function renderTplSlot(
     ctx.env.$props[varName] === undefined
   ) {
     // Render default contents if we are forced to do so, or if there's nothing
-    // passed in for the corresponding arg
+    // passed in for the corresponding arg.
+    // When the default contents, clear out component specific values to avoid
+    // user confusion.
     if (node.defaultContents.length > 0) {
       contents = node.defaultContents.flatMap((child) =>
         renderTplNode(child, {
           ...ctx,
+          env: {
+            ...ctx.env,
+            $props: {},
+            $queries: {},
+            $state: {},
+          },
           valKey: ctx.valKey + "." + child.uuid,
         })
       );
@@ -3226,12 +3291,12 @@ function createPlasmicElementProxy(
 export interface CanvasFrameInfo {
   // Using constants to avoid pulling in Arenas.ts
   viewMode: "stretch" | "centered";
+  height: number;
+  isHeightAutoDerived: boolean;
   bgColor: string | undefined;
   pageSizeType?: PageSizeType;
-  viewportHeight?: number;
   containerType?: ContainerType;
   defaultInitialPageFrameSize?: number;
-  componentType?: ComponentType;
 }
 
 export const mkCanvas = computedFn(
@@ -3245,15 +3310,8 @@ export const mkCanvas = computedFn(
       return mkUseCanvasObserver(sub, vc)(
         () => {
           const { children, frameInfo } = props;
-          const {
-            viewMode,
-            bgColor,
-            pageSizeType,
-            viewportHeight,
-            containerType,
-            defaultInitialPageFrameSize,
-            componentType,
-          } = frameInfo.get();
+          const { viewMode, height, isHeightAutoDerived, bgColor } =
+            frameInfo.get();
 
           const appUserCtx = vc.studioCtx.currentAppUserCtx;
 
@@ -3269,33 +3327,11 @@ export const mkCanvas = computedFn(
                 "__wab_root--stretch": viewMode === "stretch",
                 "__wab_root--centered": viewMode === "centered",
                 "__wab_root--checkerboard": viewMode === "centered" && !bgColor,
-                "__wab_root--page-stretch":
-                  pageSizeType === "stretch" ||
-                  pageSizeType === "fixed" ||
-                  (viewMode === "stretch" && componentType === "plain"),
+                "__wab_root--page-stretch": isHeightAutoDerived,
               }),
               style: {
-                ...(pageSizeType === "stretch" ||
-                pageSizeType === "fixed" ||
-                (viewMode === "stretch" && componentType === "plain")
-                  ? {
-                      height: "auto",
-                      minHeight: (() => {
-                        if (viewportHeight) {
-                          return viewportHeight;
-                        } else if (containerType === "free") {
-                          return "100vh";
-                        } else if (componentType === "plain") {
-                          return `${defaultInitialPageFrameSize}px`;
-                        } else {
-                          return "100px";
-                        }
-                      })(),
-                    }
-                  : {}),
-                "--viewport-height": viewportHeight
-                  ? viewportHeight + "px"
-                  : "100vh",
+                minHeight: `${height}px`,
+                "--viewport-height": `${height}px`,
               },
             },
             children

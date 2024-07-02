@@ -1,11 +1,11 @@
 /** @format */
 
 import { ensureIsTopFrame, isHostFrame } from "@/wab/client/cli-routes";
+import { LocalClipboardAction } from "@/wab/client/clipboard/local";
 import {
-  ClipboardAction,
-  parseClipboardItems,
-  ParsedClipboardData,
-} from "@/wab/client/clipboard";
+  SerializableClipboardData,
+  serializeClipboardItems,
+} from "@/wab/client/clipboard/ReadableClipboard";
 import { storageViewAsKey } from "@/wab/client/components/app-auth/ViewAsButton";
 import {
   assert,
@@ -15,14 +15,14 @@ import {
   omitNils,
   swallow,
   truncateText,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { PushPullQueue } from "@/wab/commons/asyncutil";
 import { PromisifyMethods } from "@/wab/commons/promisify-methods";
 import {
   DEVFLAGS,
   flattenInsertableIconGroups,
   flattenInsertableTemplates,
-} from "@/wab/devflags";
+} from "@/wab/shared/devflags";
 import { transformErrors } from "@/wab/shared/ApiErrors/errors";
 import { ApiUser } from "@/wab/shared/ApiSchema";
 import { fullName } from "@/wab/shared/ApiSchemaUtil";
@@ -37,7 +37,6 @@ import * as Sentry from "@sentry/browser";
 import { proxy, ProxyMarked } from "comlink";
 import $ from "jquery";
 import L, { pick } from "lodash";
-import LogRocket from "logrocket";
 import io, { Socket } from "socket.io-client";
 
 const fullApiPath = (url: /*TWZ*/ string) => `/api/v1/${L.trimStart(url, "/")}`;
@@ -154,7 +153,6 @@ export class Api extends SharedApi {
     Sentry.configureScope((scope) => {
       scope.setUser({});
     });
-    LogRocket.startNewSession();
   }
 
   async req(
@@ -308,8 +306,8 @@ export class Api extends SharedApi {
   }
 
   async readNavigatorClipboard(
-    lastAction: ClipboardAction
-  ): Promise<ParsedClipboardData> {
+    lastAction: LocalClipboardAction
+  ): Promise<SerializableClipboardData> {
     assert(!isHostFrame(), "Should only run in the top frame");
 
     let permission: PermissionStatus;
@@ -330,10 +328,10 @@ export class Api extends SharedApi {
       "Your browser does not support Clipboard API"
     );
     const items = await navigator.clipboard.read();
-    return await parseClipboardItems(items, lastAction);
+    return await serializeClipboardItems(items, lastAction);
   }
 
-  async whiltelistProjectIdToCopy(projectId: string) {
+  async whitelistProjectIdToCopy(projectId: string) {
     assert(!isHostFrame(), "Should only run in the top frame");
 
     this.addStorageItem(`copy/${projectId}`, JSON.stringify(+new Date()));
@@ -619,7 +617,7 @@ export function filteredApi(
         });
       },
     setMainBranchProtection: checkProjectIdInFirstArg,
-    whiltelistProjectIdToCopy: checkProjectIdInFirstArg,
+    whitelistProjectIdToCopy: checkProjectIdInFirstArg,
   };
 
   // Start with all methods marked as forbidden
@@ -657,7 +655,6 @@ export function setUser(user: ApiUser) {
   Sentry.configureScope((scope) => {
     scope.setUser({ id, ...traits });
   });
-  LogRocket.identify(id, traits);
 }
 
 export function invalidationKey(method: string, ...args: any[]) {

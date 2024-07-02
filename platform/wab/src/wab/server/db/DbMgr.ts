@@ -1,7 +1,6 @@
 /** @format */
 
-import { HostLessPackageInfo, ProjectDependency, Site } from "@/wab/classes";
-import { Dict, mkIdMap, safeHas } from "@/wab/collections";
+import { Dict, mkIdMap, safeHas } from "@/wab/shared/collections";
 import {
   assert,
   assertNever,
@@ -27,13 +26,12 @@ import {
   unreachable,
   withoutNils,
   xor,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { sequentially } from "@/wab/commons/asyncutil";
 import { removeFromArray } from "@/wab/commons/collections";
 import * as semver from "@/wab/commons/semver";
 import { toOpaque } from "@/wab/commons/types";
-import { DEVFLAGS } from "@/wab/devflags";
-import { withoutUids } from "@/wab/model/model-meta";
+import { DEVFLAGS } from "@/wab/shared/devflags";
 import { adminEmails } from "@/wab/server/admin";
 import { createSiteForHostlessProject } from "@/wab/server/code-components/code-components";
 import {
@@ -42,12 +40,14 @@ import {
   reevaluateDataSourceExprOpIds,
 } from "@/wab/server/data-sources/data-source-utils";
 import {
+  MigrationDbMgr,
   getLastBundleVersion,
   getMigratedBundle,
-  MigrationDbMgr,
 } from "@/wab/server/db/BundleMigrator";
 import {
   unbundlePkgVersion,
+  unbundlePkgVersionFromBundle,
+  unbundleProjectFromBundle,
   unbundleProjectFromData,
 } from "@/wab/server/db/DbBundleLoader";
 import {
@@ -121,11 +121,12 @@ import {
   WorkspaceAuthConfig,
   WorkspaceUser,
 } from "@/wab/server/entities/Entities";
-import { REAL_PLUME_VERSION } from "@/wab/server/pkgs/plume-pkg-mgr";
+import { REAL_PLUME_VERSION } from "@/wab/server/pkg-mgr/plume-pkg-mgr";
 import {
-  createTutorialDb,
   TutorialType,
+  createTutorialDb,
 } from "@/wab/server/tutorialdb/tutorialdb-utils";
+import { generateSomeApiToken } from "@/wab/server/util/Tokens";
 import {
   makeSqlCondition,
   makeTypedFieldSql,
@@ -134,7 +135,6 @@ import {
 import { ancestors, leaves, subgraph } from "@/wab/server/util/commit-graphs";
 import { stringToPair } from "@/wab/server/util/hash";
 import { KnownProvider } from "@/wab/server/util/passport-multi-oauth2";
-import { generateSomeApiToken } from "@/wab/server/util/Tokens";
 import {
   BadRequestError,
   CopilotRateLimitExceededError,
@@ -149,7 +149,6 @@ import {
   ApiTeamMeta,
   AppEndUserAccessIdentifier,
   BranchId,
-  branchStatuses,
   CmsDatabaseId,
   CmsIdAndToken,
   CmsRowId,
@@ -187,24 +186,14 @@ import {
   TutorialDbId,
   UserId,
   WorkspaceId,
+  branchStatuses,
 } from "@/wab/shared/ApiSchema";
 import { isMainBranchId, validateBranchName } from "@/wab/shared/ApiSchemaUtil";
-import { Bundler } from "@/wab/shared/bundler";
-import { getBundle } from "@/wab/shared/bundles";
-import { toVarName } from "@/wab/shared/codegen/util";
-import {
-  DataSourceType,
-  getDataSourceMeta,
-} from "@/wab/shared/data-sources-meta/data-source-registry";
-import { OperationTemplate } from "@/wab/shared/data-sources-meta/data-sources";
-import { WebhookHeader } from "@/wab/shared/db-json-blobs";
-import { isCoreTeamEmail } from "@/wab/shared/devflag-utils";
-import { MIN_ACCESS_LEVEL_FOR_SUPPORT } from "@/wab/shared/discourse/config";
 import {
   AccessLevel,
+  GrantableAccessLevel,
   accessLevelRank,
   ensureGrantableAccessLevel,
-  GrantableAccessLevel,
   humanLevel,
 } from "@/wab/shared/EntUtil";
 import {
@@ -213,37 +202,55 @@ import {
   PERSONAL_WORKSPACE,
   WORKSPACE_CAP,
 } from "@/wab/shared/Labels";
+import { Bundler } from "@/wab/shared/bundler";
+import { getBundle } from "@/wab/shared/bundles";
+import { toVarName } from "@/wab/shared/codegen/util";
+import { DEFAULT_INSERTABLE } from "@/wab/shared/constants";
+import {
+  DataSourceType,
+  getDataSourceMeta,
+} from "@/wab/shared/data-sources-meta/data-source-registry";
+import { OperationTemplate } from "@/wab/shared/data-sources-meta/data-sources";
+import { WebhookHeader } from "@/wab/shared/db-json-blobs";
+import { isCoreTeamEmail } from "@/wab/shared/devflag-utils";
+import { MIN_ACCESS_LEVEL_FOR_SUPPORT } from "@/wab/shared/discourse/config";
 import { LocalizationKeyScheme } from "@/wab/shared/localization";
+import {
+  HostLessPackageInfo,
+  ProjectDependency,
+  Site,
+} from "@/wab/shared/model/classes";
+import { withoutUids } from "@/wab/shared/model/model-meta";
 import { ratePasswordStrength } from "@/wab/shared/password-strength";
 import {
-  createTaggedResourceId,
-  pluralizeResourceId,
   ResourceId,
   ResourceType,
   SiteFeature,
   TaggedResourceId,
   TaggedResourceIds,
+  createTaggedResourceId,
+  pluralizeResourceId,
 } from "@/wab/shared/perms";
 import { isEnterprise } from "@/wab/shared/pricing/pricing-utils";
 import {
+  INITIAL_VERSION_NUMBER,
   calculateSemVer,
   compareSites,
   compareVersionNumbers,
-  INITIAL_VERSION_NUMBER,
 } from "@/wab/shared/site-diffs";
 import { MergeStep, tryMerge } from "@/wab/shared/site-diffs/merge-core";
 import {
   cloneSite,
   fixAppAuthRefs,
   getAllOpExprSourceIdsUsedInSite,
-} from "@/wab/sites";
-import { SplitStatus } from "@/wab/splits";
+} from "@/wab/shared/core/sites";
+import { SplitStatus } from "@/wab/shared/core/splits";
 import { captureMessage } from "@sentry/node";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import fs from "fs";
 import { pwnedPassword } from "hibp";
-import { createDraft, Draft, finishDraft } from "immer";
+import { Draft, createDraft, finishDraft } from "immer";
 import * as _ from "lodash";
 import L, { fromPairs, intersection, pick, uniq } from "lodash";
 import moment from "moment";
@@ -322,6 +329,7 @@ export const updatableProjectFields = [
   "extraData",
   "isMainBranchProtected",
   "isUserStarter",
+  "uiConfig",
 ] as const;
 
 export const editorOnlyUpdatableProjectFields = [
@@ -331,6 +339,7 @@ export const editorOnlyUpdatableProjectFields = [
   "readableByPublic",
   "hostUrl",
   "workspaceId",
+  "uiConfig",
 ] as const;
 
 export type UpdatableProjectFields = Pick<
@@ -1018,11 +1027,12 @@ export class DbMgr implements MigrationDbMgr {
   protected stampNew(genShortUuid?: boolean): StampNewFields {
     const actorUserId = this.tryGetNormalActorId() ?? null;
     const UUID = uuid.v4();
+    const date = new Date();
     return {
       id: genShortUuid ? shortUuid.fromUUID(UUID) : UUID,
-      createdAt: new Date(),
+      createdAt: date,
       createdById: actorUserId,
-      updatedAt: new Date(),
+      updatedAt: date,
       updatedById: actorUserId,
       deletedAt: null,
       deletedById: null,
@@ -1170,6 +1180,9 @@ export class DbMgr implements MigrationDbMgr {
     fields = _.pick(fields, userUpdatableTeamFields);
     if (fields.billingEmail) {
       fields.billingEmail = fields.billingEmail.toLowerCase();
+    }
+    if (fields.defaultAccessLevel) {
+      ensureGrantableAccessLevel(fields.defaultAccessLevel);
     }
     const team = await this.getTeamById(id);
     if (fields.uiConfig) {
@@ -3574,6 +3587,7 @@ export class DbMgr implements MigrationDbMgr {
       workspaceId?: WorkspaceId;
       revisionNum?: number;
       branchName?: string;
+      ownerEmail?: string;
     }
   ) {
     await this.checkProjectPerms(projectId, "viewer", "clone");
@@ -3608,6 +3622,7 @@ export class DbMgr implements MigrationDbMgr {
       bundler,
       {
         ...opts,
+        updateDefaultInsertable: false, // we want to retain project settings (i.e. use the same defaultInsertables as the cloned project)
         name: opts.name ?? `Copy of ${fromProjectInfo.name}${nameSuffix}`,
         ...(fromProjectBranch
           ? { hostUrl: fromProjectBranch.hostUrl ?? null }
@@ -3624,6 +3639,7 @@ export class DbMgr implements MigrationDbMgr {
       ownerId?: string;
       workspaceId?: WorkspaceId;
       hostUrl?: string;
+      ownerEmail?: string;
     }
   ) {
     await this.checkProjectPerms(projectId, "viewer", "clone");
@@ -3647,7 +3663,11 @@ export class DbMgr implements MigrationDbMgr {
       fromProject,
       fromPkgVersion,
       bundler,
-      { ...opts, name: opts.name ?? fromProject.name }
+      {
+        ...opts,
+        updateDefaultInsertable: true, // Existing published templates are used to scaffold new projects. In this case, we want to be able to modify project settings for the owner of the cloned project
+        name: opts.name ?? fromProject.name,
+      }
     );
   }
 
@@ -3660,16 +3680,28 @@ export class DbMgr implements MigrationDbMgr {
       ownerId?: string;
       workspaceId?: WorkspaceId;
       hostUrl?: string | null;
+      ownerEmail?: string;
+      updateDefaultInsertable?: boolean; // This is used to allow/prevent modifications to defaultInsertable flag
     }
   ) {
-    const { name, ownerId, workspaceId, hostUrl } = opts;
+    const {
+      name,
+      ownerId,
+      workspaceId,
+      hostUrl,
+      ownerEmail,
+      updateDefaultInsertable,
+    } = opts;
 
     const fromSite =
       fromData instanceof ProjectRevision
         ? await unbundleProjectFromData(this, bundler, fromData)
         : (await unbundlePkgVersion(this, bundler, fromData)).site;
     const clonedSite = cloneSite(fromSite);
-
+    // Devflag overrides at project creation time
+    if (isCoreTeamEmail(ownerEmail, DEVFLAGS) && updateDefaultInsertable) {
+      clonedSite.flags.defaultInsertable = DEFAULT_INSERTABLE;
+    }
     const { project, rev } = await this.createProject({
       name,
       workspaceId,
@@ -3923,13 +3955,14 @@ export class DbMgr implements MigrationDbMgr {
   // Package methods.
   //
 
-  async createSysPkg(name: string, projectId?: string) {
+  async createSysPkg(name: string, projectId?: string, pkgId?: string) {
     this.allowAnyone();
     const pkg = this.pkgs().create({
       ...this.stampNew(),
       name,
       sysname: name,
       projectId,
+      ...(pkgId ? { id: pkgId } : {}),
     });
     await this.pkgs().save(pkg);
     return pkg;
@@ -4142,12 +4175,13 @@ export class DbMgr implements MigrationDbMgr {
   async tryGetPkgVersionByProjectVersionOrTag(
     bundler: Bundler,
     projectId: string,
-    versionRangeOrTag?: string
+    versionRangeOrTag?: string,
+    withModel?: boolean
   ): Promise<{
     version: string;
     pkgVersion: PkgVersion | undefined;
     site: Site;
-    model: string;
+    model?: string;
     unbundledAs: string;
     revisionNumber: number;
     revisionId: string;
@@ -4161,7 +4195,6 @@ export class DbMgr implements MigrationDbMgr {
     );
 
     const versionOrTag = versionRangeOrTag ?? "latest";
-    const pkg = await this.getPkgByProjectId(projectId);
 
     // If versionRangeOrTag is a branch name, then we want to get the "latest" of that branch
     if (semver.isLatest(versionOrTag) || maybeBranch) {
@@ -4169,16 +4202,21 @@ export class DbMgr implements MigrationDbMgr {
       const projectRev = await this.getLatestProjectRev(projectId, {
         branchId: maybeBranch?.id,
       });
+      const bundle = await getMigratedBundle(projectRev);
       return {
         version: versionOrTag,
         pkgVersion: undefined,
-        site: await unbundleProjectFromData(this, bundler, projectRev),
-        model: JSON.stringify(await getMigratedBundle(projectRev)),
+        site: await unbundleProjectFromBundle(this, bundler, {
+          projectId,
+          bundle,
+        }),
+        model: withModel ? JSON.stringify(bundle) : undefined,
         unbundledAs: projectRev.projectId,
         revisionNumber: projectRev.revision,
         revisionId: projectRev.id,
       };
     } else {
+      const pkg = await this.getPkgByProjectId(projectId);
       assert(!!pkg, "Pkg must exist");
       // If versionOrTag is not a valid version range, assume it's a tag
       const pkgVersion = ensure(
@@ -4194,11 +4232,15 @@ export class DbMgr implements MigrationDbMgr {
         pkg.projectId,
         pkgVersion.revisionId
       );
+
+      const bundle = await getMigratedBundle(pkgVersion);
       return {
         version: pkgVersion.version,
         pkgVersion,
-        site: (await unbundlePkgVersion(this, bundler, pkgVersion)).site,
-        model: JSON.stringify(await getMigratedBundle(pkgVersion)),
+        site: (
+          await unbundlePkgVersionFromBundle(this, bundler, pkgVersion, bundle)
+        ).site,
+        model: withModel ? JSON.stringify(bundle) : undefined,
         unbundledAs: pkgVersion.id,
         revisionNumber: projectRev?.revision ?? -1,
         revisionId: pkgVersion.revisionId,
@@ -4216,11 +4258,15 @@ export class DbMgr implements MigrationDbMgr {
 
   async getPlumePkgVersionStrings() {
     const pkg = await this.getPlumePkg();
+    return await this.getPkgVersionStrings(pkg.id);
+  }
+
+  async getPkgVersionStrings(pkgId: string) {
     const versions = await this.pkgVersions()
       .createQueryBuilder()
       .select(["version"])
       .where('"pkgId" = :pkgId')
-      .setParameter("pkgId", pkg.id)
+      .setParameter("pkgId", pkgId)
       .getRawMany();
     return versions.map((v) => v.version);
   }
@@ -4248,7 +4294,8 @@ export class DbMgr implements MigrationDbMgr {
     tags: string[],
     description: string,
     revisionNum: number,
-    branchId?: BranchId
+    branchId?: BranchId,
+    id?: string
   ) {
     await this.checkPkgPerms(pkgId, "content", "publish");
 
@@ -4261,6 +4308,7 @@ export class DbMgr implements MigrationDbMgr {
       modelLength: model.length,
       tags,
       description,
+      ...(id ? { id } : {}),
       ...(branchId ? { branchId } : {}),
     });
 
@@ -7242,12 +7290,18 @@ export class DbMgr implements MigrationDbMgr {
     bundler,
     name,
     workspaceId,
+    ownerEmail,
   }: {
     site: Site;
     bundler: Bundler;
     name: string;
     workspaceId?: WorkspaceId;
+    ownerEmail?: string;
   }) {
+    // Devflag overrides at project creation time
+    if (isCoreTeamEmail(ownerEmail, DEVFLAGS)) {
+      site.flags.defaultInsertable = DEFAULT_INSERTABLE;
+    }
     const { project, rev } = await this.createProject({
       name: name,
       workspaceId,

@@ -1,12 +1,3 @@
-import {
-  CustomCode,
-  ensureKnownRawText,
-  ensureKnownTplTag,
-  Marker,
-  ObjectPath,
-  TplNode,
-  TplTag,
-} from "@/wab/classes";
 import { withErrorDisplayFallback } from "@/wab/client/components/canvas/canvas-error";
 import { resolveNodesToMarkers } from "@/wab/client/components/canvas/canvas-fns-impl";
 import { mkUseCanvasObserver } from "@/wab/client/components/canvas/canvas-observer";
@@ -16,6 +7,7 @@ import {
   RenderingCtx,
   renderTplNode,
 } from "@/wab/client/components/canvas/canvas-rendering";
+import { mkSlateString } from "@/wab/client/components/canvas/RichText/SlateString";
 import "@/wab/client/components/canvas/slate";
 import {
   mkTplTagElement,
@@ -23,10 +15,9 @@ import {
   TplTagElement,
 } from "@/wab/client/components/canvas/slate";
 import {
-  SubDeps,
   tags as htmlTags,
+  SubDeps,
 } from "@/wab/client/components/canvas/subdeps";
-import { mkSlateString } from "@/wab/client/components/canvas/RichText/SlateString";
 import {
   reactPrompt,
   ReactPromptOpts,
@@ -35,9 +26,9 @@ import type {
   EditingTextContext,
   ViewCtx,
 } from "@/wab/client/studio-ctx/view-ctx";
-import { cx, ensure, ensureInstance, spawn } from "@/wab/common";
-import { getCssRulesFromRs } from "@/wab/css";
-import { ExprCtx, getCodeExpressionWithFallback } from "@/wab/exprs";
+import { cx, ensure, ensureInstance, spawn } from "@/wab/shared/common";
+import { getCssRulesFromRs } from "@/wab/shared/css";
+import { ExprCtx, getCodeExpressionWithFallback } from "@/wab/shared/core/exprs";
 import { makeWabFlexContainerClassName } from "@/wab/shared/codegen/react-p/utils";
 import {
   isTagInline,
@@ -48,18 +39,27 @@ import {
 } from "@/wab/shared/core/rich-text-util";
 import { EffectiveVariantSetting } from "@/wab/shared/effective-variant-setting";
 import { CanvasEnv, evalCodeWithEnv } from "@/wab/shared/eval";
-import { hasGapStyle } from "@/wab/styles";
-import { isExprText, walkTpls } from "@/wab/tpls";
+import {
+  CustomCode,
+  ensureKnownRawText,
+  ensureKnownTplTag,
+  Marker,
+  ObjectPath,
+  TplNode,
+  TplTag,
+} from "@/wab/shared/model/classes";
+import { hasGapStyle } from "@/wab/shared/core/styles";
+import { isExprText, walkTpls } from "@/wab/shared/core/tpls";
 import isHotkey from "is-hotkey";
 import { camelCase, isEqual } from "lodash";
 import { computedFn } from "mobx-utils";
 import React, { CSSProperties } from "react";
 import type {
   Descendant,
+  Path,
   Editor as SlateEditor,
   Element as SlateElement,
   Node as SlateNode,
-  Path,
 } from "slate";
 import type { RenderElementProps } from "slate-react";
 
@@ -1147,34 +1147,48 @@ export const mkCanvasText = computedFn(
             onKeyUp: (e) => e.stopPropagation(),
             // Shouldn't leak click events in non-interactive mode only
             onClick: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               // NOTE: we must not use e.preventDefault in any other event handler below, or the Slate cursor will stop moving on click events
               // Meanwhile, preventDefault here in the onCLick event handler is required to make stopPropagation work in other click event handlers
               e.stopPropagation();
               e.preventDefault();
             },
             onMouseDown: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               e.stopPropagation();
             },
             onMouseUp: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               e.stopPropagation();
             },
             onPointerDown: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               e.stopPropagation();
             },
             onPointerUp: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               e.stopPropagation();
             },
             onDoubleClick: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               e.stopPropagation();
             },
             onDragStart: (e) => {
-              if (readOnly) return;
+              if (readOnly) {
+                return;
+              }
               e.stopPropagation();
             },
           }),

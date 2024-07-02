@@ -1,8 +1,13 @@
-import { TplNode } from "@/wab/classes";
+import {
+  ManipState,
+  ManipulatorAbortedError,
+  ModifierStates,
+  mkFreestyleManipForFocusedDomElt,
+} from "@/wab/client/FreestyleManipulator";
 import { hasLinkedSelectable } from "@/wab/client/components/canvas/studio-canvas-util";
 import {
-  findRowColForMouse,
   MeasuredGrid,
+  findRowColForMouse,
 } from "@/wab/client/components/style-controls/GridEditor";
 import { useViewCtx } from "@/wab/client/contexts/StudioContexts";
 import {
@@ -10,19 +15,16 @@ import {
   frameToClientRect,
   frameToScalerRect,
 } from "@/wab/client/coords";
-import { AddTplItem } from "@/wab/client/definitions/insertables";
+import {
+  AddInstallableItem,
+  AddTplItem,
+} from "@/wab/client/definitions/insertables";
 import * as domMod from "@/wab/client/dom";
 import { getPaddingRect, hasLayoutBox } from "@/wab/client/dom";
 import {
   getElementVisibleBounds,
   getVisibleBoundingClientRect,
 } from "@/wab/client/dom-utils";
-import {
-  ManipState,
-  ManipulatorAbortedError,
-  mkFreestyleManipForFocusedDomElt,
-  ModifierStates,
-} from "@/wab/client/FreestyleManipulator";
 import {
   CONTENT_LAYOUT_ICON,
   ERROR_ICON,
@@ -38,8 +40,8 @@ import {
 } from "@/wab/client/messages/parenting-msgs";
 import { computeNodeOutlineTagLayoutClass } from "@/wab/client/node-outline";
 import {
-  cssPropsForInvertTransform,
   StudioCtx,
+  cssPropsForInvertTransform,
 } from "@/wab/client/studio-ctx/StudioCtx";
 import { ViewCtx } from "@/wab/client/studio-ctx/view-ctx";
 import { summarizeFocusObj } from "@/wab/client/utils/tpl-client-utils";
@@ -51,33 +53,34 @@ import {
   maybe,
   tuple,
   withoutNils,
-} from "@/wab/common";
-import { Box, Orientation, Pt, Rect, Side, sideToOrient } from "@/wab/geom";
-import { isSelectableLocked, Selectable, SelQuery, SQ } from "@/wab/selection";
+} from "@/wab/shared/common";
+import { Box, Orientation, Pt, Rect, Side, sideToOrient } from "@/wab/shared/geom";
+import { SQ, SelQuery, Selectable, isSelectableLocked } from "@/wab/shared/core/selection";
 import { Area } from "@/wab/shared/Grids";
+import { getAncestorSlotArg } from "@/wab/shared/SlotUtils";
+import { $$$ } from "@/wab/shared/TplQuery";
 import {
   ContainerLayoutType,
   ContainerType,
   getRshContainerType,
   isFlexReverse,
 } from "@/wab/shared/layoututils";
+import { Arena, Component, TplNode } from "@/wab/shared/model/classes";
 import {
   canAddChildrenToSelectableAndWhy,
   canAddSiblings,
 } from "@/wab/shared/parenting";
-import { getAncestorSlotArg } from "@/wab/shared/SlotUtils";
-import { $$$ } from "@/wab/shared/TplQuery";
-import { SlotSelection } from "@/wab/slots";
-import { isTplVariantable, prepareFocusedTpls } from "@/wab/tpls";
+import { SlotSelection } from "@/wab/shared/core/slots";
+import { isTplVariantable, prepareFocusedTpls } from "@/wab/shared/core/tpls";
 import {
-  getComputedStyleForVal,
-  isValTagOrComponent,
   ValComponent,
   ValNode,
   ValSlot,
   ValTag,
-} from "@/wab/val-nodes";
-import { asVal } from "@/wab/vals";
+  getComputedStyleForVal,
+  isValTagOrComponent,
+} from "@/wab/shared/core/val-nodes";
+import { asVal } from "@/wab/shared/core/vals";
 import classNames from "classnames";
 import $ from "jquery";
 import L from "lodash";
@@ -750,6 +753,22 @@ export class DragInsertManager {
    */
   constructor(private studioCtx: StudioCtx, targeters: NodeTargeter[]) {
     this.targeters.push(...targeters);
+  }
+
+  /**
+   * Installs a collection from the Insert Panel without needing to require a view context.
+   * @param studioCtx
+   * @param spec
+   */
+  public static async install(studioCtx: StudioCtx, spec: AddInstallableItem) {
+    const extraInfo = spec.asyncExtraInfo
+      ? await spec.asyncExtraInfo(studioCtx)
+      : undefined;
+    let installed: Arena | Component | undefined;
+    await studioCtx.changeUnsafe(() => {
+      installed = spec.factory(studioCtx, extraInfo);
+    });
+    return installed;
   }
 
   public static async build(

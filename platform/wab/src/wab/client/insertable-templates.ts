@@ -1,29 +1,23 @@
-import {
-  Component,
-  isKnownArenaFrame,
-  isKnownTplNode,
-  ProjectDependency,
-  Site,
-  TplNode,
-  Variant,
-} from "@/wab/classes";
 import { ViewOps } from "@/wab/client/components/canvas/view-ops";
 import { promptChooseItem } from "@/wab/client/components/modals/ChooseItemModal";
 import {
-  normalizeTemplateSpec,
   StudioCtx,
+  normalizeTemplateSpec,
 } from "@/wab/client/studio-ctx/StudioCtx";
 import { ViewCtx } from "@/wab/client/studio-ctx/view-ctx";
-import { ensure, maybe, unexpected } from "@/wab/common";
-import { PageComponent } from "@/wab/components";
+import { ensure, maybe, switchType } from "@/wab/shared/common";
+import { PageComponent } from "@/wab/shared/core/components";
 import {
-  flattenInsertableTemplatesByType,
   InsertableTemplateComponentResolution,
+  InsertableTemplateTokenResolution,
   InsertableTemplatesGroup,
   InsertableTemplatesItem,
-  InsertableTemplateTokenResolution,
-} from "@/wab/devflags";
+  flattenInsertableTemplatesByType,
+} from "@/wab/shared/devflags";
 import { BranchId } from "@/wab/shared/ApiSchema";
+import { PkgInfo, PkgVersionInfo } from "@/wab/shared/SharedApi";
+import { $$$ } from "@/wab/shared/TplQuery";
+import { getBaseVariant } from "@/wab/shared/Variants";
 import { FastBundler } from "@/wab/shared/bundler";
 import { Bundle, getBundle } from "@/wab/shared/bundles";
 import { cloneInsertableTemplate } from "@/wab/shared/insertable-templates";
@@ -32,14 +26,21 @@ import {
   CopyState,
   CopyStateBundleRef,
   CopyStateExtraInfo,
-  InsertableTemplateExtraInfo,
+  InsertableTemplateComponentExtraInfo,
 } from "@/wab/shared/insertable-templates/types";
-import { PkgInfo, PkgVersionInfo } from "@/wab/shared/SharedApi";
-import { $$$ } from "@/wab/shared/TplQuery";
-import { getBaseVariant } from "@/wab/shared/Variants";
-import { unbundleProjectDependency, unbundleSite } from "@/wab/tagged-unbundle";
-import { deepTrackComponents } from "@/wab/tpls";
-import { flatten, fromPairs, isArray } from "lodash";
+import {
+  ArenaFrame,
+  ProjectDependency,
+  Site,
+  TplComponent,
+  TplNode,
+  TplSlot,
+  TplTag,
+  Variant,
+} from "@/wab/shared/model/classes";
+import { unbundleProjectDependency, unbundleSite } from "@/wab/shared/core/tagged-unbundle";
+import { deepTrackComponents } from "@/wab/shared/core/tpls";
+import { flatten, fromPairs } from "lodash";
 
 export const getPageTemplatesGroups = (studioCtx: StudioCtx) => {
   const insertableTemplates =
@@ -55,14 +56,14 @@ export const getPageTemplatesGroups = (studioCtx: StudioCtx) => {
   return pageTemplatesGroups as InsertableTemplatesGroup[];
 };
 
-export const getPageTemplates = (studioCtx: StudioCtx) => {
+const getPageTemplates = (studioCtx: StudioCtx) => {
   const pageTemplates = flatten(
     getPageTemplatesGroups(studioCtx).map((g) => g.items)
   ).filter((i) => i.type === "insertable-templates-item");
   return pageTemplates as InsertableTemplatesItem[];
 };
 
-export const getInsertableTemplatesGroups = (studioCtx: StudioCtx) => {
+const getInsertableTemplatesGroups = (studioCtx: StudioCtx) => {
   const insertableTemplates =
     maybe(studioCtx.getCurrentUiConfig()?.insertableTemplates, (x) =>
       normalizeTemplateSpec(x, false)
@@ -76,63 +77,25 @@ export const getInsertableTemplatesGroups = (studioCtx: StudioCtx) => {
   return insertableTemplatesGrups as InsertableTemplatesGroup[];
 };
 
-export const getInsertableTemplates = (studioCtx: StudioCtx) => {
+const getInsertableTemplates = (studioCtx: StudioCtx) => {
   const insertableTemplates = flatten(
     getInsertableTemplatesGroups(studioCtx).map((g) => g.items)
-  ).filter((i) => i.type === "insertable-templates-item");
+  ).filter(
+    (i) =>
+      i.type === "insertable-templates-item" ||
+      i.type === "insertable-templates-component"
+  );
   return insertableTemplates as InsertableTemplatesItem[];
 };
 
-export const getAllTemplates = (studioCtx: StudioCtx) => {
+const getAllTemplates = (studioCtx: StudioCtx) => {
   return [...getInsertableTemplates(studioCtx), ...getPageTemplates(studioCtx)];
-};
-
-export const getPageTemplate = (
-  studioCtx: StudioCtx,
-  projectId: string,
-  componentName: string
-) => {
-  const pageTemplates = getPageTemplates(studioCtx);
-  const pageTemplate = pageTemplates.find(
-    (tmpl) =>
-      tmpl.projectId === projectId && tmpl.componentName === componentName
-  );
-  return pageTemplate;
-};
-
-export const getInsertablePageTemplateComponent = (
-  studioCtx: StudioCtx,
-  chosenTemplate: {
-    componentName?: string;
-    projectId?: string;
-  }
-) => {
-  if (!chosenTemplate.componentName || !chosenTemplate.projectId) {
-    return;
-  }
-
-  const pageTemplate = getPageTemplate(
-    studioCtx,
-    chosenTemplate.projectId,
-    chosenTemplate.componentName
-  );
-  if (!pageTemplate) {
-    return;
-  }
-
-  const it =
-    studioCtx.projectDependencyManager.getInsertableTemplate(pageTemplate);
-  if (!it) {
-    return;
-  }
-
-  return it;
 };
 
 export const replaceWithPageTemplate = (
   studioCtx: StudioCtx,
   page: PageComponent,
-  templateInfo: InsertableTemplateExtraInfo
+  templateInfo: InsertableTemplateComponentExtraInfo
 ) => {
   const { tpl: toBeInserted, seenFonts } = cloneInsertableTemplate(
     studioCtx.site,
@@ -207,20 +170,6 @@ export const getScreenVariantToInsertableTemplate = async (
   }
 };
 
-export const getVariantsToInsertableTemplate = async (
-  studioCtx: StudioCtx,
-  component: Component
-) => {
-  const baseVariant = getBaseVariant(component);
-  const { screenVariant } = await getScreenVariantToInsertableTemplate(
-    studioCtx
-  );
-  return {
-    baseVariant,
-    screenVariant,
-  };
-};
-
 export const getHostLessDependenciesToInsertableTemplate = async (
   studioCtx: StudioCtx,
   sourceSite: Site
@@ -269,7 +218,7 @@ export async function buildInsertableExtraInfo(
   projectId: string,
   componentName: string,
   screenVariant: Variant | undefined
-): Promise<InsertableTemplateExtraInfo | undefined> {
+): Promise<InsertableTemplateComponentExtraInfo | undefined> {
   await studioCtx.projectDependencyManager.fetchInsertableTemplate(projectId);
 
   const it = studioCtx.projectDependencyManager.getInsertableTemplate({
@@ -289,6 +238,7 @@ export async function buildInsertableExtraInfo(
     screenVariant,
     ...(await getHostLessDependenciesToInsertableTemplate(studioCtx, it.site)),
     projectId,
+    groupName: template?.groupName,
     resolution: {
       token: template?.tokenResolution,
       component: template?.componentResolution,
@@ -296,7 +246,7 @@ export async function buildInsertableExtraInfo(
   };
 }
 
-export function getInsertableTemplateComponentItems(studioCtx: StudioCtx) {
+function getInsertableTemplateComponentItems(studioCtx: StudioCtx) {
   return flattenInsertableTemplatesByType(
     studioCtx.appCtx.appConfig.insertableTemplates,
     "insertable-templates-component"
@@ -312,46 +262,42 @@ export function getInsertableTemplateComponentItem(
   );
 }
 
-export function createCopyableElementsReferences(
+function createCopyableElementsReferences(
   viewCtx: ViewCtx,
-  copyObj: ReturnType<ViewOps["copy"]>
+  copyObj: NonNullable<ReturnType<ViewOps["copy"]>>
 ): CopyElementsReference[] {
-  // Copy paste will only handle single tplNodes for now
-  if (isArray(copyObj)) {
-    // No need for pasting multiple elements for now
-    return [];
-  } else {
-    function tplNodeRef(node: TplNode): CopyElementsReference {
-      const activeVariants = viewCtx
-        .variantTplMgr()
-        .getActivatedVariantsForNode(node);
-      return {
-        type: "tpl-node",
-        uuid: node.uuid,
-        activeVariantsUuids: [...activeVariants].map((v) => v.uuid),
-      };
-    }
-
-    if (isKnownTplNode(copyObj)) {
-      return [tplNodeRef(copyObj)];
-    } else if (isKnownArenaFrame(copyObj)) {
-      // We have some options here:
-      // 1. Copy the entire frame as a frame
-      // 2. Import the component which the frame is based on
-      // 3. Copy the tree of the component
-      // For now, the most natural thing to do is to copy the tree of the component
-      const node = copyObj.container.component.tplTree;
-      return [tplNodeRef(node)];
-    }
+  function tplNodeRef(node: TplNode): CopyElementsReference {
+    const activeVariants = viewCtx
+      .variantTplMgr()
+      .getActivatedVariantsForNode(node);
+    return {
+      type: "tpl-node",
+      uuid: node.uuid,
+      activeVariantsUuids: [...activeVariants].map((v) => v.uuid),
+    };
   }
-  unexpected("Unknown copyable element type");
-}
 
-export const PLASMIC_COPY_PREFIX = "pl-copy;";
+  return (
+    switchType(copyObj)
+      // Copy paste will only handle single tplNodes for now
+      .when(Array<TplTag | TplComponent | TplSlot>, () => [])
+      .when(TplNode, (node) => [tplNodeRef(node)])
+      .when(ArenaFrame, (frame) => {
+        // We have some options here:
+        // 1. Copy the entire frame as a frame
+        // 2. Import the component which the frame is based on
+        // 3. Copy the tree of the component
+        // For now, the most natural thing to do is to copy the tree of the component
+        const node = frame.container.component.tplTree;
+        return [tplNodeRef(node)];
+      })
+      .result()
+  );
+}
 
 export function getCopyState(
   viewCtx: ViewCtx,
-  copyObj: ReturnType<ViewOps["copy"]>
+  copyObj: NonNullable<ReturnType<ViewOps["copy"]>>
 ): CopyState {
   const references = createCopyableElementsReferences(viewCtx, copyObj);
 

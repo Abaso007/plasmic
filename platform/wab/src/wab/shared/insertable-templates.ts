@@ -1,6 +1,8 @@
-import { Component, Site, TplNode, Variant } from "@/wab/classes";
-import { withoutNils } from "@/wab/common";
-import { allComponentVariants } from "@/wab/components";
+import { withoutNils } from "@/wab/shared/common";
+import { allComponentVariants } from "@/wab/shared/core/components";
+import { FrameViewMode, mkArenaFrame } from "@/wab/shared/Arenas";
+import { TplMgr } from "@/wab/shared/TplMgr";
+import { VariantCombo } from "@/wab/shared/Variants";
 import { siteToAllImageAssetsDict } from "@/wab/shared/cached-selectors";
 import {
   importComponentsInTree,
@@ -17,21 +19,71 @@ import {
 import {
   inlineComponents,
   inlineSlots,
-  inlineTokens,
 } from "@/wab/shared/insertable-templates/inliners";
 import {
   CopyStateExtraInfo,
   InlineComponentContext,
-  InsertableTemplateExtraInfo,
+  InsertableTemplateArenaExtraInfo,
+  InsertableTemplateComponentExtraInfo,
 } from "@/wab/shared/insertable-templates/types";
+import { Component, Site, TplNode, Variant } from "@/wab/shared/model/classes";
 import { assertSiteInvariants } from "@/wab/shared/site-invariants";
-import { VariantCombo } from "@/wab/shared/Variants";
-import { allGlobalVariants, allStyleTokens } from "@/wab/sites";
+import { allGlobalVariants, allStyleTokens } from "@/wab/shared/core/sites";
 import {
   clone as cloneTpl,
   flattenTpls,
   flattenTplsBottomUp,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
+
+export function cloneInsertableTemplateArena(
+  site: Site,
+  info: InsertableTemplateArenaExtraInfo,
+  plumeSite: Site | undefined
+) {
+  const { arena, groupName } = info;
+  const tplMgr = new TplMgr({ site });
+  let newFonts = new Set<string>();
+  const newArena = tplMgr.addArena(`${groupName}/${arena.name}`);
+  arena.children.forEach((c) => {
+    const { component, seenFonts } = cloneInsertableTemplateComponent(
+      site,
+      {
+        ...info,
+        component: c.container.component,
+      },
+      plumeSite
+    );
+
+    const newVariants = [
+      ...component.variantGroups.flatMap((vg) => vg.variants),
+      ...component.variants,
+    ];
+
+    newFonts = new Set([...newFonts, ...seenFonts]);
+    newArena.children.push(
+      mkArenaFrame({
+        site,
+        name: c.name,
+        component,
+        width: c.width,
+        height: c.height,
+        top: c.top || undefined,
+        left: c.left || undefined,
+        viewMode: FrameViewMode[c.viewMode],
+        targetVariants: withoutNils(
+          c.targetVariants.map((v) =>
+            newVariants.find((nv) => nv.name === v.name)
+          )
+        ),
+        pinnedVariants: {},
+        targetGlobalVariants: [],
+        pinnedGlobalVariants: {},
+      })
+    );
+  });
+
+  return { arena: newArena, seenFonts: newFonts };
+}
 
 /**
  * @param site Target site to clone the component
@@ -43,16 +95,26 @@ import {
  */
 export function cloneInsertableTemplateComponent(
   site: Site,
-  info: InsertableTemplateExtraInfo,
+  info: InsertableTemplateComponentExtraInfo,
   plumeSite: Site | undefined
 ) {
   const seenFonts = new Set<string>();
 
-  const oldTokens = allStyleTokens(info.site, { includeDeps: "all" });
+  const targetTokens = allStyleTokens(site, { includeDeps: "all" });
+  const sourceTokens = allStyleTokens(info.site, {
+    includeDeps: "all",
+  });
 
-  const tokenImporter = (tplTree: TplNode) => {
-    inlineTokens(tplTree, oldTokens, (font) => seenFonts.add(font));
-  };
+  const tokenImporter = mkInsertableTokenImporter(
+    info.site,
+    site,
+    sourceTokens,
+    targetTokens,
+    info.resolution.token,
+    info.screenVariant,
+    info.groupName,
+    (font) => seenFonts.add(font)
+  );
 
   const componentImporter = mkInsertableComponentImporter(
     site,
@@ -66,7 +128,7 @@ export function cloneInsertableTemplateComponent(
 
 export function getUnownedTreeCloneUtils(
   site: Site,
-  info: InsertableTemplateExtraInfo,
+  info: InsertableTemplateComponentExtraInfo,
   targetBaseVariant: Variant,
   plumeSite: Site | undefined,
   ownerComponent: Component
@@ -89,6 +151,7 @@ export function getUnownedTreeCloneUtils(
     newTokens,
     info.resolution.token,
     info.screenVariant,
+    info.groupName,
     (font) => seenFonts.add(font)
   );
 
@@ -117,7 +180,7 @@ export function getUnownedTreeCloneUtils(
  */
 export function cloneInsertableTemplate(
   site: Site,
-  info: InsertableTemplateExtraInfo,
+  info: InsertableTemplateComponentExtraInfo,
   targetBaseVariant: Variant,
   plumeSite: Site | undefined,
   ownerComponent: Component

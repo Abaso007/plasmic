@@ -1,4 +1,3 @@
-import { StyleToken } from "@/wab/classes";
 import {
   ColorTokenPopup,
   newTokenValueAllowed,
@@ -6,6 +5,7 @@ import {
 import { ColorSwatch } from "@/wab/client/components/style-controls/ColorSwatch";
 import { UnloggedDragCatcher } from "@/wab/client/components/style-controls/UnloggedDragCatcher";
 import Button from "@/wab/client/components/widgets/Button";
+import "@/wab/client/components/widgets/ColorPicker/Pickr.overrides.scss";
 import { useClientTokenResolver } from "@/wab/client/components/widgets/ColorPicker/client-token-resolver";
 import {
   ColorMode,
@@ -16,7 +16,6 @@ import {
   getShortenedColor,
   getShortenedHSL,
 } from "@/wab/client/components/widgets/ColorPicker/colorPickerUtils";
-import "@/wab/client/components/widgets/ColorPicker/Pickr.overrides.scss";
 import { ColorTokenSelector } from "@/wab/client/components/widgets/ColorTokenSelector";
 import { Icon } from "@/wab/client/components/widgets/Icon";
 import { IconButton } from "@/wab/client/components/widgets/IconButton";
@@ -24,18 +23,23 @@ import { ensureNumber, nudgeIntoRange } from "@/wab/client/number-utils";
 import { CloseIcon } from "@/wab/client/plasmic/plasmic_kit/PlasmicIcon__Close";
 import { useUndo } from "@/wab/client/shortcuts/studio/useUndo";
 import { StudioCtx, useStudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
-import { ensure } from "@/wab/common";
-import { MaybeWrap } from "@/wab/commons/components/ReactUtil";
+import { ensure } from "@/wab/shared/common";
 import {
+  TokenType,
   derefTokenRefs,
   mkTokenRef,
-  TokenType,
   tryParseTokenRef,
 } from "@/wab/commons/StyleToken";
-import { TokenValueResolver } from "@/wab/shared/cached-selectors";
-import { Chroma } from "@/wab/shared/utils/color-utils";
+import { MaybeWrap } from "@/wab/commons/components/ReactUtil";
 import { VariantedStylesHelper } from "@/wab/shared/VariantedStylesHelper";
-import { allColorTokens, allStyleTokens, isEditable } from "@/wab/sites";
+import { TokenValueResolver } from "@/wab/shared/cached-selectors";
+import { StyleToken } from "@/wab/shared/model/classes";
+import { Chroma } from "@/wab/shared/utils/color-utils";
+import {
+  allColorTokens,
+  allStyleTokens,
+  isStyleTokenEditable,
+} from "@/wab/shared/core/sites";
 import Pickr from "@simonwep/pickr";
 import "@simonwep/pickr/dist/themes/nano.min.css";
 import { Input, InputRef, Select, Tooltip } from "antd";
@@ -479,7 +483,7 @@ function ColorPicker_({
           {appliedToken && (
             <div className="flex flex-vcenter mb-sm">
               <MaybeWrap
-                cond={isEditable(sc.site, appliedToken)}
+                cond={isStyleTokenEditable(sc.site, appliedToken)}
                 wrapper={(x) => (
                   <Tooltip title="Edit color token">
                     {x as React.ReactElement}
@@ -568,7 +572,7 @@ function ColorPicker_({
           />
         </div>
       )}
-      {editToken && isEditable(sc.site, editToken) && (
+      {editToken && isStyleTokenEditable(sc.site, editToken) && (
         <ColorTokenPopup
           token={editToken}
           studioCtx={sc}

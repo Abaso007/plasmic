@@ -3,65 +3,10 @@ import {
   BackgroundLayer,
   ColorFill,
   NoneBackground,
-} from "@/wab/bg-styles";
+} from "@/wab/shared/core/bg-styles";
 import {
-  AnyType,
-  ArgType,
-  BoolType,
-  Choice,
-  ClassNamePropType as ModelClassNamePropType,
-  CodeComponentHelper,
-  CodeComponentMeta,
-  CodeLibrary,
-  CollectionExpr,
-  ColorPropType,
-  Component,
-  ComponentInstance,
-  CustomCode,
-  CustomFunction,
-  DateRangeStrings,
-  DateString,
-  DefaultStylesClassNamePropType,
-  ensureKnownPropParam,
-  ensureKnownTplTag,
-  EventHandler,
-  Expr,
-  FigmaComponentMapping,
-  FunctionType,
-  HostLessPackageInfo,
-  HrefType,
-  Img,
-  Interaction,
-  isKnownClassNamePropType,
-  isKnownPropParam,
-  isKnownStateParam,
-  isKnownStyleExpr,
-  isKnownVirtualRenderExpr,
-  NamedState,
-  Num,
-  Param,
-  QueryData,
-  RenderExpr,
-  SelectorRuleSet,
-  Site,
-  State,
-  StyleScopeClassNamePropType as ModelStyleScopeClassNamePropType,
-  StyleToken,
-  TargetType,
-  Text,
-  TplComponent,
-  TplNode,
-  TplSlot,
-  TplTag,
-  Type,
-  Var,
-  Variant,
-  VariantsRef,
-  VarRef,
-} from "@/wab/classes";
-import {
-  assert,
   CustomError,
+  assert,
   ensure,
   ensureArray,
   hackyCast,
@@ -77,9 +22,9 @@ import {
   unexpected,
   withoutNils,
   xDifference,
-} from "@/wab/common";
-import { removeFromArray } from "@/wab/commons/collections";
+} from "@/wab/shared/common";
 import { TokenType } from "@/wab/commons/StyleToken";
+import { removeFromArray } from "@/wab/commons/collections";
 import {
   CodeComponent,
   ComponentType,
@@ -95,13 +40,19 @@ import {
   isPlumeComponent,
   mkComponent,
   removeComponentParam,
-} from "@/wab/components";
-import { getCssInitial, normProp, parseCssShorthand } from "@/wab/css";
-import { asCode, ExprCtx } from "@/wab/exprs";
+} from "@/wab/shared/core/components";
+import { getCssInitial, normProp, parseCssShorthand } from "@/wab/shared/css";
+import { ExprCtx, asCode } from "@/wab/shared/core/exprs";
 import * as cssPegParser from "@/wab/gen/cssPegParser";
-import { standardCorners, standardSides } from "@/wab/geom";
-import { mkParam, mkParamsForState, ParamExportType } from "@/wab/lang";
-import { walkDependencyTree } from "@/wab/project-deps";
+import { standardCorners, standardSides } from "@/wab/shared/geom";
+import { ParamExportType, mkParam, mkParamsForState } from "@/wab/shared/core/lang";
+import { walkDependencyTree } from "@/wab/shared/core/project-deps";
+import { RSH } from "@/wab/shared/RuleSetHelpers";
+import { getSlotParams, isSlot } from "@/wab/shared/SlotUtils";
+import { TplMgr } from "@/wab/shared/TplMgr";
+import { $$$ } from "@/wab/shared/TplQuery";
+import { ensureBaseVariantSetting } from "@/wab/shared/VariantTplMgr";
+import { ensureVariantSetting, mkBaseVariant } from "@/wab/shared/Variants";
 import { AddItemKey } from "@/wab/shared/add-item-keys";
 import {
   allCustomFunctions,
@@ -115,16 +66,14 @@ import {
   isBuiltinCodeComponentImportPath,
 } from "@/wab/shared/code-components/builtin-code-components";
 import {
+  ensureOnlyValidInteractiveVariantsInComponent,
+  getInvalidInteractiveVariantsInComponent,
+} from "@/wab/shared/code-components/interaction-variants";
+import {
   paramToVarName,
   toVarName,
   validJsIdentifierChars,
 } from "@/wab/shared/codegen/util";
-import { instUtil } from "@/wab/shared/core/InstUtil";
-import {
-  convertTsToWabType,
-  typeFactory,
-  typesEqual,
-} from "@/wab/shared/core/model-util";
 import {
   CONTENT_LAYOUT_FULL_BLEED,
   CONTENT_LAYOUT_WIDE,
@@ -132,34 +81,91 @@ import {
 } from "@/wab/shared/core/style-props";
 import { AddItemPrefs, getDefaultStyles } from "@/wab/shared/default-styles";
 import { convertSelfContainerType } from "@/wab/shared/layoututils";
+import { instUtil } from "@/wab/shared/model/InstUtil";
+import {
+  AnyType,
+  ArgType,
+  BoolType,
+  Choice,
+  CodeComponentHelper,
+  CodeComponentInteractionVariantMeta,
+  CodeComponentMeta,
+  CodeLibrary,
+  CollectionExpr,
+  ColorPropType,
+  Component,
+  ComponentInstance,
+  CustomCode,
+  CustomFunction,
+  DateRangeStrings,
+  DateString,
+  DefaultStylesClassNamePropType,
+  EventHandler,
+  Expr,
+  FigmaComponentMapping,
+  FunctionType,
+  HostLessPackageInfo,
+  HrefType,
+  Img,
+  Interaction,
+  ClassNamePropType as ModelClassNamePropType,
+  StyleScopeClassNamePropType as ModelStyleScopeClassNamePropType,
+  NamedState,
+  Num,
+  Param,
+  QueryData,
+  RenderExpr,
+  SelectorRuleSet,
+  Site,
+  State,
+  StyleToken,
+  TargetType,
+  Text,
+  TplComponent,
+  TplNode,
+  TplSlot,
+  TplTag,
+  Type,
+  Var,
+  VarRef,
+  Variant,
+  VariantsRef,
+  ensureKnownPropParam,
+  ensureKnownTplTag,
+  isKnownClassNamePropType,
+  isKnownPropParam,
+  isKnownStateParam,
+  isKnownStyleExpr,
+  isKnownVirtualRenderExpr,
+} from "@/wab/shared/model/classes";
+import {
+  convertTsToWabType,
+  typeFactory,
+  typesEqual,
+} from "@/wab/shared/model/model-util";
 import { getPlumeEditorPlugin } from "@/wab/shared/plume/plume-registry";
 import { canComponentTakeRef } from "@/wab/shared/react-utils";
 import { CodeLibraryRegistration } from "@/wab/shared/register-library";
-import { RSH } from "@/wab/shared/RuleSetHelpers";
-import { getSlotParams, isSlot } from "@/wab/shared/SlotUtils";
-import { TplMgr } from "@/wab/shared/TplMgr";
-import { $$$ } from "@/wab/shared/TplQuery";
 import { validJsIdentifierRegex } from "@/wab/shared/utils/regex-valid-js-identifier";
-import { ensureVariantSetting, mkBaseVariant } from "@/wab/shared/Variants";
-import { ensureBaseVariantSetting } from "@/wab/shared/VariantTplMgr";
-import { allComponents, isHostLessPackage, writeable } from "@/wab/sites";
+import { allComponents, isHostLessPackage, writeable } from "@/wab/shared/core/sites";
 import {
+  StateAccessType,
+  StateVariableType,
   addComponentState,
   mkNamedState,
   removeComponentStateOnly,
-  StateAccessType,
-  StateVariableType,
   updateStateAccessType,
-} from "@/wab/states";
+} from "@/wab/shared/core/states";
 import {
   changeTokenUsage,
   extractTokenUsages,
   mkRuleSet,
   parseCssValue,
-} from "@/wab/styles";
+} from "@/wab/shared/core/styles";
 import {
-  cloneType,
   EventHandlerKeyType,
+  TplTagType,
+  cloneType,
   findAllInstancesOfComponent,
   flattenTpls,
   getTplComponentsInSite,
@@ -172,8 +178,7 @@ import {
   mkTplComponentX,
   mkTplInlinedText,
   mkTplTagX,
-  TplTagType,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import type {
   ComponentMeta,
   ComponentRegistration,
@@ -223,10 +228,10 @@ import React, { CSSProperties } from "react";
 import semver from "semver";
 import stripCssComments from "strip-css-comments";
 import {
-  failable,
   FailableArgParams,
-  failableAsync,
   IFailable,
+  failable,
+  failableAsync,
   mapMultiple,
 } from "ts-failable";
 import type { Opaque } from "type-fest";
@@ -604,6 +609,9 @@ export interface CodeComponentSyncCallbackFns {
     updatedLibraries: CodeLibrary[];
     removedLibraries: CodeLibrary[];
   }) => void;
+  confirmRemovedInteractiveVariants?: (
+    removedSelectorsByComponent: [Component, string[]][]
+  ) => Promise<IFailable<void, never>>;
 }
 
 export class DuplicateCodeComponentError extends CustomError {
@@ -661,8 +669,13 @@ export async function syncCodeComponents(
     run(checkUniqueCodeComponentNames(ctx));
     run(checkWhitespacesInImportNames(ctx, fns));
     const newComponents = run(await addNewRegisteredComponents(ctx, fns));
+    // The order here is important. We first sync interactions variants so that
+    // model operations like remove component and swap component can be applied
+    // based on the latest interaction variants.
+    run(await syncCodeComponentsInteractionVariants(ctx));
     run(await fixMissingCodeComponents(ctx, fns));
     run(await fixMissingDefaultComponents(ctx, fns));
+    run(await fixCodeComponentsInteractionVariants(ctx, fns));
 
     // At this point, we've added all the new components and removed
     // all the removed components.
@@ -1138,6 +1151,89 @@ export async function fixMissingCodeComponents(
   });
 }
 
+// Update interaction variants meta for all the code components in the site,
+// this is done separately from the other code component metas because we need
+// special handling for model elements that depend on it
+async function syncCodeComponentsInteractionVariants(ctx: SiteCtx) {
+  return failableAsync<void, never>(async ({ success, run }) => {
+    run(
+      await ctx.change(
+        ({ success: syncedInteractionVariantMeta }) => {
+          ctx.site.components.forEach((c) => {
+            if (isCodeComponent(c)) {
+              const meta = ctx.codeComponentsRegistry
+                .getRegisteredComponentsAndContextsMap()
+                .get(c.name)?.meta;
+              const interactionVariants = meta
+                ? mkCodeComponentInteractionVariantsFromMeta(meta)
+                : {};
+              if (
+                !instUtil.deepEquals(
+                  c.codeComponentMeta.interactionVariantMeta,
+                  interactionVariants,
+                  true
+                )
+              ) {
+                c.codeComponentMeta.interactionVariantMeta =
+                  interactionVariants;
+              }
+            }
+          });
+          return syncedInteractionVariantMeta();
+        },
+        { noUndoRecord: true }
+      )
+    );
+
+    return success();
+  });
+}
+
+async function fixCodeComponentsInteractionVariants(
+  ctx: SiteCtx,
+  fns: CodeComponentSyncCallbackFns
+) {
+  return failableAsync<void, never>(async ({ success, run }) => {
+    const removedSelectorsByComponent: [Component, string[]][] = [];
+
+    const componentsToObserve: Component[] = [];
+
+    ctx.site.components.forEach((c) => {
+      if (!isCodeComponent(c)) {
+        const { unregisterdSelectors } =
+          getInvalidInteractiveVariantsInComponent(c);
+
+        if (unregisterdSelectors.length > 0) {
+          removedSelectorsByComponent.push([c, unregisterdSelectors]);
+          componentsToObserve.push(c);
+        }
+      }
+    });
+
+    if (removedSelectorsByComponent.length > 0) {
+      await fns.confirmRemovedInteractiveVariants?.(
+        removedSelectorsByComponent
+      );
+    }
+
+    ctx.observeComponents(componentsToObserve);
+
+    run(
+      await ctx.change(
+        ({ success: removedInvalidInteractionVariants }) => {
+          componentsToObserve.forEach((c) => {
+            ensureOnlyValidInteractiveVariantsInComponent(ctx.site, c);
+          });
+          return removedInvalidInteractionVariants();
+        },
+        { noUndoRecord: true }
+      )
+    );
+
+    return success();
+  });
+}
+
 async function refreshCodeComponentMetas(
   ctx: SiteCtx,
   fns: CodeComponentSyncCallbackFns
@@ -1220,6 +1316,8 @@ function refreshCodeComponentMeta(
       c.codeComponentMeta.importName = meta.importName ?? null;
       c.codeComponentMeta.displayName = meta.displayName ?? null;
       c.codeComponentMeta.description = meta.description ?? null;
+      c.codeComponentMeta.section = meta.section ?? null;
+      c.codeComponentMeta.thumbnailUrl = meta.thumbnailUrl ?? null;
       c.codeComponentMeta.isAttachment = !!meta.isAttachment;
       c.codeComponentMeta.providesData = !!meta.providesData;
       c.codeComponentMeta.isRepeatable = meta.isRepeatable ?? true;
@@ -1566,9 +1664,11 @@ export function compareComponentStatesWithMeta(
           "Couldn't find state " + name
         ),
       }));
-    const removedStates = [...existingStates.entries()]
-      .filter(([name]) => !registeredStates.has(name))
-      .map(([_, s]) => s);
+    const removedStates = !isPlumeComponent(component)
+      ? [...existingStates.entries()]
+          .filter(([name]) => !registeredStates.has(name))
+          .map(([_, s]) => s)
+      : [];
 
     return success({
       addedStates,
@@ -1601,10 +1701,13 @@ function refreshComponentStates(ctx: SiteCtx) {
                 "Missing code component " + c.name
               ).meta
             : makePlumeComponentMeta(c);
-          stateChanges.push({
+          const stateChange = {
             component: c,
             ...run(compareComponentStatesWithMeta(ctx.site, c, meta)),
-          });
+          };
+          if (hasStateChanges(stateChange)) {
+            stateChanges.push(stateChange);
+          }
         });
 
       const changedComponents = Array.from(
@@ -1615,9 +1718,7 @@ function refreshComponentStates(ctx: SiteCtx) {
       );
       ctx.observeComponents([...parentComponents, ...changedComponents]);
       stateChanges.forEach((changes) => {
-        if (hasStateChanges(changes)) {
-          doUpdateComponentStates(ctx.site, changes.component, changes);
-        }
+        doUpdateComponentStates(ctx.site, changes.component, changes);
       });
       return success();
     }
@@ -1985,9 +2086,11 @@ export function compareComponentPropsWithMeta(
           "Couldn't find param " + name
         ),
       }));
-    const removedProps = [...existingParams.entries()]
-      .filter(([name]) => !registeredParams.has(name))
-      .map(([_, p]) => p);
+    const removedProps = !isPlumeComponent(component)
+      ? [...existingParams.entries()]
+          .filter(([name]) => !registeredParams.has(name))
+          .map(([_, p]) => p)
+      : [];
     return success({
       addedProps,
       updatedProps,
@@ -3030,6 +3133,7 @@ export function propMetasToComponentParams(
               propEffect: maybePropTypeToPropEffect(type),
               displayName: maybePropTypeToDisplayName(type),
               about: maybePropTypeToAbout(type),
+              description: maybePropTypeToAbout(type),
               isRepeated: maybePropTypeToIsRepeated(type),
               isMainContentSlot: maybePropTypeToIsMainContentSlot(type),
               mergeWithParent: maybePropTypeToMergeWithParent(type),
@@ -3202,6 +3306,8 @@ export function mkCodeComponent(
       displayName: meta.displayName,
       importName: meta.importName,
       description: meta.description,
+      section: !isGlobalContextMeta(meta) ? meta.section : undefined,
+      thumbnailUrl: !isGlobalContextMeta(meta) ? meta.section : undefined,
       defaultStyles: styles
         ? mkRuleSet({
             values: Object.fromEntries(
@@ -3221,6 +3327,7 @@ export function mkCodeComponent(
       // explicitly not handling defaultSlotContents, which is done by
       // refreshDefaultSlotContents()
       defaultSlotContents: {},
+      interactionVariantMeta: mkCodeComponentInteractionVariantsFromMeta(meta),
     }),
     figmaMappings: (isGlobalContextMeta(meta)
       ? []
@@ -3395,7 +3502,7 @@ export function maybePropTypeToRequired(type: StudioPropType<any>) {
 }
 
 export function maybePropTypeToAbout(type: StudioPropType<any>) {
-  if (isPlainObjectPropType(type) && type.type !== "slot") {
+  if (isPlainObjectPropType(type)) {
     if (type.description) {
       return type.description;
     }
@@ -3561,6 +3668,26 @@ export function mkCodeComponentHelperFromMeta(
         ? meta.componentHelpers.isDefaultExport
         : false,
   });
+}
+
+export function mkCodeComponentInteractionVariantsFromMeta(
+  meta: ComponentMeta<any> | GlobalContextMeta<any>
+) {
+  if (!("interactionVariants" in meta) || !meta.interactionVariants) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(meta.interactionVariants).map(
+      ([selector, { cssSelector, displayName }]): [
+        string,
+        CodeComponentInteractionVariantMeta
+      ] => [
+        selector,
+        new CodeComponentInteractionVariantMeta({ cssSelector, displayName }),
+      ]
+    )
+  );
 }
 
 export function ensurePropTypeToWabType(site: Site, type: StudioPropType<any>) {

@@ -1,3 +1,20 @@
+import { assert, ensure } from "@/wab/shared/common";
+import {
+  cloneComponent,
+  isCodeComponent,
+  isHostLessCodeComponent,
+  isPlumeComponent,
+} from "@/wab/shared/core/components";
+import { walkDependencyTree } from "@/wab/shared/core/project-deps";
+import { TplMgr } from "@/wab/shared/TplMgr";
+import { getBaseVariant } from "@/wab/shared/Variants";
+import { siteToAllImageAssetsDict } from "@/wab/shared/cached-selectors";
+import {
+  ensureValidClonedComponent,
+  makeImageAssetFixer,
+} from "@/wab/shared/insertable-templates/fixers";
+import { ensureHostLessDepComponent } from "@/wab/shared/insertable-templates/inliners";
+import { HostLessDependencies } from "@/wab/shared/insertable-templates/types";
 import {
   Component,
   ComponentTemplateInfo,
@@ -5,36 +22,17 @@ import {
   TplComponent,
   TplNode,
   Variant,
-} from "@/wab/classes";
-import { assert, ensure } from "@/wab/common";
-import {
-  cloneComponent,
-  isCodeComponent,
-  isHostLessCodeComponent,
-  isPlumeComponent,
-} from "@/wab/components";
-import { walkDependencyTree } from "@/wab/project-deps";
-import { siteToAllImageAssetsDict } from "@/wab/shared/cached-selectors";
-import {
-  ensureValidClonedComponent,
-  makeImageAssetFixer,
-} from "@/wab/shared/insertable-templates/fixers";
-import {
-  ensureHostLessDepComponent,
-  getSiteMatchingPlumeComponent,
-} from "@/wab/shared/insertable-templates/inliners";
-import { HostLessDependencies } from "@/wab/shared/insertable-templates/types";
+} from "@/wab/shared/model/classes";
 import { makeComponentSwapper } from "@/wab/shared/swap-components";
-import { TplMgr } from "@/wab/shared/TplMgr";
-import { getBaseVariant } from "@/wab/shared/Variants";
-import { allComponents } from "@/wab/sites";
-import { flattenTpls, isTplComponent } from "@/wab/tpls";
+import { allComponents } from "@/wab/shared/core/sites";
+import { flattenTpls, isTplComponent } from "@/wab/shared/core/tpls";
 
 interface OriginInfo {
   projectId: string;
   site: Site;
   screenVariant: Variant | undefined;
   hostLessDependencies: HostLessDependencies;
+  groupName?: string;
 }
 
 export type ComponentImporter = (
@@ -91,6 +89,11 @@ export function mkInsertableComponentImporter(
     );
 
     importComponentsInTree(site, comp.tplTree, comp, getNewComponent);
+
+    // Recursively fixup subcomps
+    for (const component of comp.subComps) {
+      fixupComp(component);
+    }
   };
 
   const getNewComponent = (comp: Component, tpl?: TplComponent) => {
@@ -116,17 +119,21 @@ export function mkInsertableComponentImporter(
     }
 
     if (isPlumeComponent(comp)) {
-      const plumeComp = getSiteMatchingPlumeComponent(
-        site,
+      const existing = site.components.find(
+        (c) => c.plumeInfo?.type === comp.plumeInfo?.type
+      );
+      if (existing) {
+        oldToNewComponent.set(comp, existing);
+        return existing;
+      }
+
+      const plumeComp = new TplMgr({ site }).clonePlumeComponent(
         info.site,
-        ensure(tpl, "Cannot insert a plume component as a template"),
-        plumeSite,
-        info
+        comp.uuid,
+        comp.name,
+        true
       );
-      assert(
-        plumeComp,
-        () => `Cannot find plume component ${comp.plumeInfo?.type}`
-      );
+
       oldToNewComponent.set(comp, plumeComp);
       // Perform fixes in the plume component as this may be a customized version
       // created by the user
@@ -191,7 +198,16 @@ export function mkInsertableComponentImporter(
   };
 
   const cloneComp = (comp: Component) => {
-    const newComp = cloneComponent(comp, comp.name).component;
+    let compName = comp.name;
+    if (info.groupName) {
+      // Hidden pages should stay hidden even after prefixing
+      if (comp.type === "page" && compName.startsWith("_")) {
+        compName = compName.replace("_", `_${info.groupName}/`);
+      } else {
+        compName = `${info.groupName}/${compName}`;
+      }
+    }
+    const newComp = cloneComponent(comp, compName).component;
     fixupComp(newComp);
     newComp.templateInfo = new ComponentTemplateInfo({
       name: newComp.templateInfo?.name,

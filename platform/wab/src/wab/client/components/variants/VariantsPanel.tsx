@@ -1,14 +1,3 @@
-import {
-  Component,
-  ComponentVariantGroup,
-  ensureKnownTplTag,
-  ObjectPath,
-  ProjectDependency,
-  TplComponent,
-  TplTag,
-  Variant,
-  VariantGroup,
-} from "@/wab/classes";
 import { MenuBuilder } from "@/wab/client/components/menu-builder";
 import {
   SidebarSection,
@@ -58,18 +47,30 @@ import ScreenIcon from "@/wab/client/plasmic/plasmic_kit_design_system/PlasmicIc
 import { StudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
 import { ViewCtx } from "@/wab/client/studio-ctx/view-ctx";
 import { testIds } from "@/wab/client/test-helpers/test-ids";
-import { ensure, ensureInstance, partitions, spawn } from "@/wab/common";
+import { ensure, ensureInstance, partitions, spawn } from "@/wab/shared/common";
 import {
   allComponentStyleVariants,
   getSuperComponents,
   isPageComponent,
-} from "@/wab/components";
+} from "@/wab/shared/core/components";
 import { findNonEmptyCombos } from "@/wab/shared/cached-selectors";
-import { ScreenSizeSpec } from "@/wab/shared/Css";
+import { ScreenSizeSpec } from "@/wab/shared/css-size";
+import {
+  Component,
+  ComponentVariantGroup,
+  isKnownTplTag,
+  ObjectPath,
+  ProjectDependency,
+  TplComponent,
+  TplTag,
+  Variant,
+  VariantGroup,
+} from "@/wab/shared/model/classes";
 import { VariantPinState } from "@/wab/shared/PinManager";
 import { getPlumeVariantDef } from "@/wab/shared/plume/plume-registry";
 import { VariantOptionsType } from "@/wab/shared/TplMgr";
 import {
+  canHaveInteractionVariant,
   getBaseVariant,
   isBaseVariant,
   isGlobalVariantGroup,
@@ -79,13 +80,16 @@ import {
   moveVariantGroup,
   variantComboKey,
 } from "@/wab/shared/Variants";
+import {
+  isGlobalVariantGroupUsedInSplits,
+  isVariantUsedInSplits,
+} from "@/wab/shared/core/splits";
 import { Menu } from "antd";
 import sortBy from "lodash/sortBy";
 import { observer } from "mobx-react";
 import * as React from "react";
 import { DraggableProvidedDragHandleProps } from "react-beautiful-dnd";
 import { useSessionStorage } from "react-use";
-import { isTplTag } from "src/wab/tpls";
 
 interface VariantsPanelProps {
   studioCtx: StudioCtx;
@@ -477,61 +481,62 @@ export const VariantsPanel = observer(
                 )
               )}
             </SimpleReorderableList>
-            {isTplTag(root) && !isPageComponent(component) && (
-              <VariantSection
-                showIcon
-                icon={<Icon icon={BoltIcon} />}
-                title="Interaction Variants"
-                emptyAddButtonText="Add variant"
-                emptyAddButtonTooltip="Interaction variants are automatically activated when the user interacts with the component -- by hovering, focusing, pressing, etc."
-                onAddNewVariant={() =>
-                  studioCtx.change(({ success }) => {
-                    studioCtx.siteOps().createStyleVariant(component);
-                    return success();
-                  })
-                }
-                isQuiet
-              >
-                {styleVariants.map((variant) => (
-                  <ComponentStyleVariantRow
-                    key={variant.uuid}
-                    variant={variant}
-                    component={component}
-                    studioCtx={studioCtx}
-                    viewCtx={viewCtx}
-                    pinState={vcontroller.getPinState(variant)}
-                    onClick={() =>
-                      justAddedVariant !== variant &&
-                      studioCtx.change(({ success }) => {
-                        vcontroller.onClickVariant(variant);
-                        return success();
-                      })
-                    }
-                    onTarget={
-                      canChangeVariants ||
-                      vcontroller.canToggleTargeting(variant)
-                        ? (target) =>
-                            studioCtx.change(({ success }) => {
-                              vcontroller.onTargetVariant(variant, target);
-                              return success();
-                            })
-                        : undefined
-                    }
-                    onToggle={
-                      canChangeVariants
-                        ? () =>
-                            studioCtx.change(({ success }) => {
-                              vcontroller.onToggleVariant(variant);
-                              return success();
-                            })
-                        : undefined
-                    }
-                    defaultEditing={variant === justAddedVariant}
-                    onEdited={() => setJustAddedVariant(undefined)}
-                  />
-                ))}
-              </VariantSection>
-            )}
+            {canHaveInteractionVariant(component) &&
+              !isPageComponent(component) && (
+                <VariantSection
+                  showIcon
+                  icon={<Icon icon={BoltIcon} />}
+                  title="Interaction Variants"
+                  emptyAddButtonText="Add variant"
+                  emptyAddButtonTooltip="Interaction variants are automatically activated when the user interacts with the component -- by hovering, focusing, pressing, etc."
+                  onAddNewVariant={() =>
+                    studioCtx.change(({ success }) => {
+                      studioCtx.siteOps().createStyleVariant(component);
+                      return success();
+                    })
+                  }
+                  isQuiet
+                >
+                  {styleVariants.map((variant) => (
+                    <ComponentStyleVariantRow
+                      key={variant.uuid}
+                      variant={variant}
+                      component={component}
+                      studioCtx={studioCtx}
+                      viewCtx={viewCtx}
+                      pinState={vcontroller.getPinState(variant)}
+                      onClick={() =>
+                        justAddedVariant !== variant &&
+                        studioCtx.change(({ success }) => {
+                          vcontroller.onClickVariant(variant);
+                          return success();
+                        })
+                      }
+                      onTarget={
+                        canChangeVariants ||
+                        vcontroller.canToggleTargeting(variant)
+                          ? (target) =>
+                              studioCtx.change(({ success }) => {
+                                vcontroller.onTargetVariant(variant, target);
+                                return success();
+                              })
+                          : undefined
+                      }
+                      onToggle={
+                        canChangeVariants
+                          ? () =>
+                              studioCtx.change(({ success }) => {
+                                vcontroller.onToggleVariant(variant);
+                                return success();
+                              })
+                          : undefined
+                      }
+                      defaultEditing={variant === justAddedVariant}
+                      onEdited={() => setJustAddedVariant(undefined)}
+                    />
+                  ))}
+                </VariantSection>
+              )}
 
             {superComps.map((superComp) => (
               <SuperComponentVariantsSection
@@ -874,6 +879,9 @@ const GlobalVariantRow = observer(function GlobalVariantRow(props: {
     onToggle,
   } = props;
   const ref = React.useRef<EditableLabelHandles>(null);
+
+  const isSplitsVariant = isVariantUsedInSplits(studioCtx.site, variant);
+
   return (
     <VariantRow
       key={variant.uuid}
@@ -894,13 +902,17 @@ const GlobalVariantRow = observer(function GlobalVariantRow(props: {
               return success();
             })
           ),
-        onRemove: () =>
-          spawn(
-            studioCtx.change(({ success }) => {
-              spawn(studioCtx.siteOps().removeGlobalVariant(variant));
-              return success();
-            })
-          ),
+        // Splits variants can't be removed independently of the split if it's
+        // not through the split editor
+        onRemove: !isSplitsVariant
+          ? () =>
+              spawn(
+                studioCtx.change(({ success }) => {
+                  spawn(studioCtx.siteOps().removeGlobalVariant(variant));
+                  return success();
+                })
+              )
+          : undefined,
         onRename: () => ref.current && ref.current.setEditing(true),
       })}
       label={
@@ -945,6 +957,7 @@ const ComponentStyleVariantRow = observer(
       onToggle,
     } = props;
     const ref = React.useRef<EditableLabelHandles>(null);
+
     return (
       <VariantRow
         key={variant.uuid}
@@ -986,7 +999,9 @@ const ComponentStyleVariantRow = observer(
         label={
           <StyleVariantLabel
             variant={variant}
-            forTag={ensureKnownTplTag(component.tplTree).tag}
+            forTag={
+              isKnownTplTag(component.tplTree) ? component.tplTree.tag : ""
+            }
             forRoot={true}
             ref={ref}
             onSelectorsChange={(sels) =>
@@ -1174,6 +1189,11 @@ const GlobalVariantGroupSection = observer(
       onRename,
     } = props;
 
+    const isSplitsGroup = isGlobalVariantGroupUsedInSplits(
+      studioCtx.site,
+      group
+    );
+
     const ref = React.useRef<EditableLabelHandles>(null);
     return (
       <VariantSection
@@ -1187,15 +1207,20 @@ const GlobalVariantGroupSection = observer(
             ref={ref}
           />
         }
-        onAddNewVariant={() =>
-          studioCtx.change(({ success }) => {
-            const variant = studioCtx.tplMgr().createGlobalVariant(group);
-            if (isScreenVariantGroup(group)) {
-              variant.mediaQuery = new ScreenSizeSpec(0).query();
-            }
-            onAddedVariant(variant);
-            return success();
-          })
+        // We don't allow adding new variants to split groups as they
+        // should be handled by the split editor
+        onAddNewVariant={
+          !isSplitsGroup
+            ? () =>
+                studioCtx.change(({ success }) => {
+                  const variant = studioCtx.tplMgr().createGlobalVariant(group);
+                  if (isScreenVariantGroup(group)) {
+                    variant.mediaQuery = new ScreenSizeSpec(0).query();
+                  }
+                  onAddedVariant(variant);
+                  return success();
+                })
+            : undefined
         }
         menu={makeVariantGroupMenu({
           group,

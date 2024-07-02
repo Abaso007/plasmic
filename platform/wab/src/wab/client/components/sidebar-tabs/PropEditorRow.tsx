@@ -1,42 +1,4 @@
 //@ts-ignore
-import {
-  CollectionExpr,
-  CompositeExpr,
-  CustomCode,
-  DataSourceOpExpr,
-  EventHandler,
-  Expr,
-  FunctionArg,
-  FunctionExpr,
-  GenericEventHandler,
-  ImageAssetRef,
-  isKnownCustomCode,
-  isKnownExpr,
-  isKnownFunctionExpr,
-  isKnownFunctionType,
-  isKnownObjectPath,
-  isKnownQueryData,
-  isKnownRenderExpr,
-  isKnownTemplatedString,
-  isKnownVarRef,
-  MapExpr,
-  ObjectPath,
-  PageHref,
-  Param,
-  QueryInvalidationExpr,
-  RawText,
-  RenderExpr,
-  StrongFunctionArg,
-  StyleExpr,
-  StyleTokenRef,
-  TemplatedString,
-  TplComponent,
-  TplRef,
-  TplTag,
-  Type,
-  VariantsRef,
-  VarRef,
-} from "@/wab/classes";
 import ContextMenuIndicator from "@/wab/client/components/ContextMenuIndicator/ContextMenuIndicator";
 import { ComponentPropModal } from "@/wab/client/components/modals/ComponentPropModal";
 import { DataPickerEditor } from "@/wab/client/components/sidebar-tabs/ComponentProps/DataPickerEditor";
@@ -79,7 +41,7 @@ import {
   swallow,
   switchType,
   tuple,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { HighlightBlinker } from "@/wab/commons/components/HighlightBlinker";
 import { DeepReadonly } from "@/wab/commons/types";
 import {
@@ -92,7 +54,7 @@ import {
   isPageComponent,
   isPlainComponent,
   isPlumeComponent,
-} from "@/wab/components";
+} from "@/wab/shared/core/components";
 import {
   asCode,
   clone,
@@ -111,7 +73,7 @@ import {
   renderable,
   summarizeExpr,
   tryExtractLit,
-} from "@/wab/exprs";
+} from "@/wab/shared/core/exprs";
 import { getLinkedCodeProps } from "@/wab/shared/cached-selectors";
 import {
   ensurePropTypeToWabType,
@@ -127,16 +89,54 @@ import {
 } from "@/wab/shared/code-components/code-components";
 import { getContextDependentValue } from "@/wab/shared/context-dependent-value";
 import {
-  isRenderableType,
-  typeFactory,
-  typesEqual,
-} from "@/wab/shared/core/model-util";
-import {
   computeDefinedIndicator,
   DefinedIndicatorType,
 } from "@/wab/shared/defined-indicator";
 import { tryEvalExpr } from "@/wab/shared/eval";
 import { getInputTypeOptions } from "@/wab/shared/html-utils";
+import {
+  CollectionExpr,
+  CompositeExpr,
+  CustomCode,
+  DataSourceOpExpr,
+  EventHandler,
+  Expr,
+  FunctionArg,
+  FunctionExpr,
+  GenericEventHandler,
+  ImageAssetRef,
+  isKnownCustomCode,
+  isKnownExpr,
+  isKnownFunctionExpr,
+  isKnownFunctionType,
+  isKnownObjectPath,
+  isKnownQueryData,
+  isKnownRenderExpr,
+  isKnownTemplatedString,
+  isKnownVarRef,
+  MapExpr,
+  ObjectPath,
+  PageHref,
+  Param,
+  QueryInvalidationExpr,
+  RawText,
+  RenderExpr,
+  StrongFunctionArg,
+  StyleExpr,
+  StyleTokenRef,
+  TemplatedString,
+  TplComponent,
+  TplRef,
+  TplTag,
+  Type,
+  VariantsRef,
+  VarRef,
+} from "@/wab/shared/model/classes";
+import {
+  isRenderableType,
+  typeFactory,
+  typesEqual,
+} from "@/wab/shared/model/model-util";
 import { hashExpr } from "@/wab/shared/site-diffs";
 import { getTplComponentArg, unsetTplComponentArg } from "@/wab/shared/TplMgr";
 import { $$$ } from "@/wab/shared/TplQuery";
@@ -147,7 +147,7 @@ import {
   isTplRawString,
   isTplTag,
   TplTagCodeGenType,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import { Menu } from "antd";
 import { capitalize, isString, keyBy } from "lodash";
 import { observer } from "mobx-react";
@@ -627,9 +627,9 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
   };
   const ref = React.useRef<PropEditorRef>(null);
 
-  const { unwrapExpr, wrapExpr } =
+  const { maybeUnwrapExpr, maybeWrapExpr } =
     getExprTransformationBasedOnPropType(propType);
-  const expr = unwrapExpr(origExpr);
+  const expr = maybeUnwrapExpr(origExpr);
 
   const studioCtx = useStudioCtx();
   const [newParamModalVisibile, setNewParamModalVisible] =
@@ -701,7 +701,7 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
       path: ["undefined"],
       fallback: expr ? clone(expr) : codeLit(undefined),
     });
-    props.onChange(wrapExpr(newExpr));
+    props.onChange(maybeWrapExpr(newExpr));
     setShowFallback(true);
     setIsDataPickerVisible(true);
   }
@@ -812,7 +812,7 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
             onClick={() => {
               props.onChange(
                 isKnownCustomCode(expr) || isKnownObjectPath(expr)
-                  ? wrapExpr(expr.fallback) ?? undefined
+                  ? maybeWrapExpr(expr.fallback)
                   : undefined
               );
             }}
@@ -865,11 +865,9 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
             ? clone(codeExpr.fallback)
             : undefined;
           const newExpr = createExprForDataPickerValue(val, fallbackExpr);
-          props.onChange(wrapExpr(newExpr));
+          props.onChange(maybeWrapExpr(newExpr));
         }}
-        onUnlink={() =>
-          props.onChange(wrapExpr(codeExpr.fallback) ?? undefined)
-        }
+        onUnlink={() => props.onChange(maybeWrapExpr(codeExpr.fallback))}
         visible={isDataPickerVisible}
         setVisible={setIsDataPickerVisible}
         data={canvasEnv}
@@ -908,13 +906,13 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
                 viewCtx
               );
               if (newExpr !== expr) {
-                props.onChange(wrapExpr(newExpr));
+                props.onChange(maybeWrapExpr(newExpr));
               }
             });
           } else {
             const newExpr = updateOrCreateExpr(expr, wabType, val);
             if (newExpr !== expr) {
-              props.onChange(wrapExpr(newExpr));
+              props.onChange(maybeWrapExpr(newExpr));
             }
           }
         }}
@@ -1069,12 +1067,12 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
                     } else {
                       delete newExpr.params[param];
                     }
-                    props.onChange(wrapExpr(newExpr));
+                    props.onChange(maybeWrapExpr(newExpr));
                   }}
                   onDelete={() => {
                     const newExpr = clone(expr) as PageHref;
                     delete newExpr.params[param];
-                    props.onChange(wrapExpr(newExpr));
+                    props.onChange(maybeWrapExpr(newExpr));
                   }}
                   disableLinkToProp={props.disableLinkToProp}
                   disableDynamicValue={props.disableDynamicValue}
@@ -1109,7 +1107,7 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
                             path: codeExpr.path,
                             fallback: undefined,
                           });
-                      props.onChange(wrapExpr(newExpr));
+                      props.onChange(maybeWrapExpr(newExpr));
                     });
                   }}
                 >
@@ -1145,7 +1143,7 @@ function InnerPropEditorRow_(props: PropEditorRowProps) {
                               path: codeExpr.path,
                               fallback: fallbackExpr,
                             });
-                        props.onChange(wrapExpr(newExpr));
+                        props.onChange(maybeWrapExpr(newExpr));
                       });
                     }}
                     onDelete={props.onDelete}
@@ -1282,17 +1280,27 @@ function getExprTransformationBasedOnPropType(propType: StudioPropType<any>) {
         ? propType.argTypes.map(({ name }) => name)
         : propType.argNames;
     return {
-      wrapExpr: (x) =>
-        new FunctionExpr({
+      maybeWrapExpr: (x: Expr | undefined | null) => {
+        if (x == null) {
+          return undefined;
+        }
+        return new FunctionExpr({
           bodyExpr: x,
           argNames,
-        }),
-      unwrapExpr: (x) => (isKnownFunctionExpr(x) ? x.bodyExpr : undefined),
+        });
+      },
+      maybeUnwrapExpr: (x: Expr | undefined | null) => {
+        if (x == null) {
+          return undefined;
+        }
+        return isKnownFunctionExpr(x) ? x.bodyExpr : undefined;
+      },
     };
   }
   return {
-    wrapExpr: (x) => x,
-    unwrapExpr: (x) => x,
+    maybeWrapExpr: (x: Expr | undefined | null) => (x == null ? undefined : x),
+    maybeUnwrapExpr: (x: Expr | undefined | null) =>
+      x == null ? undefined : x,
   };
 }
 

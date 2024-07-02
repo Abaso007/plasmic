@@ -169,6 +169,11 @@ export default defineConfig({
       "/api": `http://localhost:${backendPort}`,
     },
   },
+  source: {
+    entry: {
+      index: "src/wab/client/main.tsx"
+    }
+  },
   output: {
     distPath: {
       root: "build",
@@ -250,7 +255,9 @@ export default defineConfig({
           PUBLICPATH: JSON.stringify(publicUrl),
           COMMITHASH: JSON.stringify(commitHash),
           DEPLOYENV: JSON.stringify(buildEnv),
-          "process.env": JSON.stringify(process.env),
+          "process.env": JSON.stringify({
+            NODE_ENV: "production",
+          }),
         }),
         new MonacoWebpackPlugin(),
         new HtmlWebpackPlugin(
@@ -259,9 +266,6 @@ export default defineConfig({
             {
               inject: true,
               template: "./public/index.html",
-              templateParameters: {
-                assetPrefix: publicUrl,
-              },
             },
             buildEnv === "production"
               ? {
@@ -281,7 +285,7 @@ export default defineConfig({
               : undefined
           )
         ),
-        new StudioHtmlPlugin(publicUrl, commitHash),
+        new StudioHtmlPlugin(commitHash),
       ],
     },
   },

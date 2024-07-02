@@ -1,3 +1,6 @@
+import { assert, isNonNil } from "@/wab/shared/common";
+import { removeFromArray } from "@/wab/commons/collections";
+import { componentToDeepReferenced } from "@/wab/shared/cached-selectors";
 import {
   Component,
   isKnownCustomCode,
@@ -11,11 +14,9 @@ import {
   TplComponent,
   TplNode,
   Variant,
-} from "@/wab/classes";
-import { assert, isNonNil } from "@/wab/common";
-import { removeFromArray } from "@/wab/commons/collections";
-import { componentToDeepReferenced } from "@/wab/shared/cached-selectors";
-import { wabToTsType } from "@/wab/shared/core/model-util";
+  VariantsRef,
+} from "@/wab/shared/model/classes";
+import { wabToTsType } from "@/wab/shared/model/model-util";
 import { isSlot } from "@/wab/shared/SlotUtils";
 import { $$$ } from "@/wab/shared/TplQuery";
 import { UserError } from "@/wab/shared/UserError";
@@ -24,8 +25,9 @@ import {
   ensureCorrectImplicitStates,
   isPublicState,
   removeComponentState,
-} from "@/wab/states";
-import { isTplComponent } from "@/wab/tpls";
+} from "@/wab/shared/core/states";
+import { isTplComponent } from "@/wab/shared/core/tpls";
+import { ensureOnlyValidInteractiveVariantsInComponent } from "@/wab/shared/code-components/interaction-variants";
 
 export function makeComponentSwapper(
   site: Site,
@@ -131,15 +133,17 @@ export function makeComponentSwapper(
           isKnownStateParam(toParam) &&
           toVariantGroupParams.has(toParam)
         ) {
-          // A variants arg; map to new variants if we have a variants ref
-          if (isKnownVariantsRef(arg.expr)) {
-            const expr = arg.expr;
+          const fixVariantsRef = (expr: VariantsRef) => {
             const fromVariants = expr.variants;
             const toVariants = fromVariants
               .map((v) => variantMap.get(v))
               .filter(isNonNil);
             expr.variants = toVariants;
             arg.param = toParam;
+          };
+          // A variants arg; map to new variants if we have a variants ref
+          if (isKnownVariantsRef(arg.expr)) {
+            fixVariantsRef(arg.expr);
           } else if (
             isKnownCustomCode(arg.expr) ||
             isKnownObjectPath(arg.expr)
@@ -147,6 +151,11 @@ export function makeComponentSwapper(
             // If we have a custom code we assume it's an expression that properly
             // matches to the new variants
             arg.param = toParam;
+            // If arg.expr is a CustomCode/ObjectPath it means that we might need to fix
+            // the fallback expr.
+            if (isKnownVariantsRef(arg.expr.fallback)) {
+              fixVariantsRef(arg.expr.fallback);
+            }
           } else {
             assert(false, "Unexpected variants arg");
           }
@@ -177,6 +186,12 @@ export function makeComponentSwapper(
 
     // Finally, we make sure we create the implicit states we should have
     ensureCorrectImplicitStates(site, owner, tpl);
+
+    // If we are changing the root component, we ensure that the interaction variants
+    // are valid
+    if (!tpl.parent) {
+      ensureOnlyValidInteractiveVariantsInComponent(site, owner);
+    }
   };
 
   return (tpl: TplNode, owner: Component) => {

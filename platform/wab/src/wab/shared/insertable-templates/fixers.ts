@@ -1,5 +1,35 @@
 import {
+  arrayEqIgnoreOrder,
+  assert,
+  remove,
+  switchType,
+  unexpected,
+  withoutNils,
+} from "@/wab/shared/common";
+import {
+  derefToken,
+  derefTokenRefs,
+  hasTokenRefs,
+  maybeDerefToken,
+  mkTokenRef,
+  replaceAllTokenRefs,
+  TokenType,
+} from "@/wab/commons/StyleToken";
+import { isCodeComponent, isPlumeComponent } from "@/wab/shared/core/components";
+import { InsertableTemplateTokenResolution } from "@/wab/shared/devflags";
+import { code, isFallbackableExpr } from "@/wab/shared/core/exprs";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
+import { mkImageAssetRef } from "@/wab/shared/core/image-assets";
+import { toVarName } from "@/wab/shared/codegen/util";
+import { getEffectiveVariantSettingForInsertable } from "@/wab/shared/effective-variant-setting";
+import {
+  inlineMixins,
+  inlineTokens,
+} from "@/wab/shared/insertable-templates/inliners";
+import { TargetVariants } from "@/wab/shared/insertable-templates/types";
+import {
   Component,
+  CompositeExpr,
   CustomCode,
   EventHandler,
   Expr,
@@ -25,35 +55,7 @@ import {
   VariantsRef,
   VarRef,
   VirtualRenderExpr,
-} from "@/wab/classes";
-import {
-  arrayEqIgnoreOrder,
-  assert,
-  remove,
-  switchType,
-  unexpected,
-  withoutNils,
-} from "@/wab/common";
-import {
-  derefToken,
-  derefTokenRefs,
-  hasTokenRefs,
-  mkTokenRef,
-  replaceAllTokenRefs,
-  TokenType,
-} from "@/wab/commons/StyleToken";
-import { isCodeComponent, isPlumeComponent } from "@/wab/components";
-import { InsertableTemplateTokenResolution } from "@/wab/devflags";
-import { code, isFallbackableExpr } from "@/wab/exprs";
-import { ImageAssetType } from "@/wab/image-asset-type";
-import { mkImageAssetRef } from "@/wab/image-assets";
-import { toVarName } from "@/wab/shared/codegen/util";
-import { getEffectiveVariantSettingForInsertable } from "@/wab/shared/effective-variant-setting";
-import {
-  inlineMixins,
-  inlineTokens,
-} from "@/wab/shared/insertable-templates/inliners";
-import { TargetVariants } from "@/wab/shared/insertable-templates/types";
+} from "@/wab/shared/model/classes";
 import {
   joinCssValues,
   RSH,
@@ -75,7 +77,7 @@ import {
   isTplTextBlock,
   TplTextTag,
   walkTpls,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import { isString } from "lodash";
 
 export function ensureTplWithBaseAndScreenVariants(
@@ -251,6 +253,7 @@ export function mkInsertableTokenImporter(
   targetTokens: StyleToken[],
   tokenResolution: InsertableTemplateTokenResolution | undefined,
   screenVariant: Variant | undefined,
+  groupName: string | undefined,
   onFontSeen: (font: string) => void
 ) {
   const oldToNewToken = new Map<StyleToken, StyleToken>();
@@ -299,9 +302,11 @@ export function mkInsertableTokenImporter(
 
     const tplMgr = new TplMgr({ site: targetSite });
     const newToken = tplMgr.addToken({
-      name: tplMgr.getUniqueTokenName(oldToken.name),
+      name: tplMgr.getUniqueTokenName(
+        groupName ? `${groupName}/${oldToken.name}` : oldToken.name
+      ),
       tokenType: oldToken.type as TokenType,
-      value: derefToken(oldTokens, oldToken),
+      value: maybeDerefToken(targetTokens, oldTokens, oldToken),
     });
 
     if (screenVariant) {
@@ -530,11 +535,25 @@ function getFixedExpr(
       // TODO: handle style expr so that customizations to code components through
       // class are not lost
       .when([StyleExpr], (_expr) => null)
-      // TODO: handle variants ref, this may depend whether the tree is owned or not
-      .when([VariantsRef], (_expr) => null)
+      // VariantsRef should have been fixed when the component was imported/swapped
+      .when([VariantsRef], (_expr) => _expr)
       // TODO: possible to handle if it's possible to reference the same page in the target
       .when([PageHref], (_expr) => null)
-
+      .when([CompositeExpr], (_expr) => {
+        return new CompositeExpr({
+          hostLiteral: _expr.hostLiteral,
+          substitutions: Object.entries(_expr.substitutions ?? {}).reduce(
+            (acc, [key, value]) => {
+              const fixedValue = getFixedExpr(ctx, value, helpers);
+              if (fixedValue) {
+                acc[key] = fixedValue;
+              }
+              return acc;
+            },
+            {} as CompositeExpr["substitutions"]
+          ),
+        });
+      })
       .elseUnsafe(() => null)
   );
 }

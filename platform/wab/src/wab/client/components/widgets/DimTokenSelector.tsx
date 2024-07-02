@@ -1,4 +1,3 @@
-import { isKnownStyleToken, StyleToken } from "@/wab/classes";
 import { FieldAriaProps } from "@/wab/client/components/aria-utils";
 import ListItem from "@/wab/client/components/ListItem";
 import ListSectionHeader from "@/wab/client/components/ListSectionHeader";
@@ -25,7 +24,7 @@ import {
   precisionRound,
   spawn,
   unexpected,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { MaybeWrap } from "@/wab/commons/components/ReactUtil";
 import {
   derefToken,
@@ -35,22 +34,27 @@ import {
   tokenTypeLabel,
   tryParseTokenRef,
 } from "@/wab/commons/StyleToken";
-import * as css from "@/wab/css";
-import { lengthCssUnits, parseCssNumericNew, toShorthandVals } from "@/wab/css";
+import * as css from "@/wab/shared/css";
+import { lengthCssUnits, parseCssNumericNew, toShorthandVals } from "@/wab/shared/css";
 import {
   siteToAllDirectTokensOfType,
   TokenValueResolver,
 } from "@/wab/shared/cached-selectors";
-import { createNumericSize, isValidUnit, showSizeCss } from "@/wab/shared/Css";
+import { createNumericSize, isValidUnit, showSizeCss } from "@/wab/shared/css-size";
+import { isKnownStyleToken, StyleToken } from "@/wab/shared/model/classes";
 import { VariantedStylesHelper } from "@/wab/shared/VariantedStylesHelper";
-import { Placement } from "@react-types/overlays";
 import { notification, Tooltip } from "antd";
+import type { TooltipPlacement } from "antd/es/tooltip";
 import cn from "classnames";
 import { useCombobox, UseComboboxGetItemPropsOptions } from "downshift";
 import L from "lodash";
 import { observer } from "mobx-react";
 import React from "react";
-import { useInteractOutside, useOverlayPosition } from "react-aria";
+import {
+  AriaPositionProps,
+  useInteractOutside,
+  useOverlayPosition,
+} from "react-aria";
 import ReactDOM from "react-dom";
 import { VariableSizeList } from "react-window";
 
@@ -109,7 +113,7 @@ export const DimTokenSpinner = observer(
       tokenType?: TokenType;
       fieldAriaProps?: FieldAriaProps;
       studioCtx?: StudioCtx;
-      dropdownPlacement?: Placement;
+      dropdownPlacement?: AriaPositionProps["placement"];
       minDropdownWidth?: number;
       maxDropdownWidth?: number;
       autoFocus?: boolean;
@@ -121,8 +125,9 @@ export const DimTokenSpinner = observer(
       onEscape?: (e: React.KeyboardEvent) => void;
       placeholder?: string;
       disabledTooltip?: React.ReactNode | (() => React.ReactNode);
-      "data-plasmic-prop"?: string;
       tooltip?: React.ReactNode | (() => React.ReactNode);
+      tooltipPlacement?: TooltipPlacement;
+      "data-plasmic-prop"?: string;
       onFocus?: () => void;
       onBlur?: () => void;
     } & DimValueOpts,
@@ -527,7 +532,9 @@ export const DimTokenSpinner = observer(
         <MaybeWrap
           cond={!!props.tooltip}
           wrapper={(x) => (
-            <Tooltip title={props.tooltip}>{x as React.ReactElement}</Tooltip>
+            <Tooltip title={props.tooltip} placement={props.tooltipPlacement}>
+              {x as React.ReactElement}
+            </Tooltip>
           )}
         >
           <PlasmicDimTokenSelector

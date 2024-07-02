@@ -3,20 +3,20 @@ import sty from "@/wab/client/components/modals/ContentEditorConfigModal.module.
 import Button from "@/wab/client/components/widgets/Button";
 import { Modal } from "@/wab/client/components/widgets/Modal";
 import Select from "@/wab/client/components/widgets/Select";
-import { ensureType, isOneOf, unreachable } from "@/wab/common";
+import { ensureType, isOneOf, unreachable } from "@/wab/shared/common";
 import { toOpaque } from "@/wab/commons/types";
 import { PublicStyleSection, TemplateSpec } from "@/wab/shared/ApiSchema";
 import {
   BASIC_ALIASES,
   COMPONENT_ALIASES,
-  LeftTabUiKey,
   LEFT_TAB_UI_KEYS,
-  makeNiceAliasName,
+  LeftTabUiKey,
   PROJECT_CONFIGS,
   UiConfig,
+  makeNiceAliasName,
 } from "@/wab/shared/ui-config-utils";
-import { capitalizeFirst } from "@/wab/strs";
-import { Form, Input } from "antd";
+import { capitalizeFirst } from "@/wab/shared/strs";
+import { Alert, Form, Input } from "antd";
 import { capitalize, omit, uniqBy } from "lodash";
 import React from "react";
 
@@ -26,7 +26,7 @@ export function ContentEditorConfigModal(props: {
   appCtx: AppCtx;
   config: UiConfig;
   title: React.ReactNode;
-  level: "team" | "workspace" | "content-editor";
+  level: "team" | "workspace" | "project" | "content-editor";
   onSubmit: (config: UiConfig) => void;
   onCancel: () => void;
 }) {
@@ -75,6 +75,13 @@ export function ContentEditorConfigModal(props: {
         }}
       >
         <div className="ph-xxlg overflow-scroll">
+          {level === "project" && (
+            <Alert
+              className="mt-sm"
+              type={"info"}
+              message={`Changes to the project UI configuration will only take place after refreshing the page.`}
+            />
+          )}
           <h3 className="mv-xlg">Insertion</h3>
           <Form.Item name={["canInsertBasics"]} noStyle>
             <BooleanPreferencesControl
@@ -111,14 +118,12 @@ export function ContentEditorConfigModal(props: {
 
           <h3 className="mv-xlg">Project Configs</h3>
           <Form.Item name={["projectConfigs"]} noStyle>
-            <PreferencesControl
+            <BooleanPreferencesControl
               label={"Can edit project configurations?"}
               prefKeys={PROJECT_CONFIGS.map((t) => ({
                 value: t,
                 label: capitalizeFirst(t),
               })).sort((a, b) => a.label.localeCompare(b.label))}
-              options={[true, false]}
-              optionLabel={(op) => (op ? "Enabled" : "Disabled")}
             />
           </Form.Item>
 

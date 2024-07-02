@@ -1,11 +1,16 @@
-import { withoutNils } from "@/wab/common";
+import { withoutNils } from "@/wab/shared/common";
 import { arrayReversed } from "@/wab/commons/collections";
-import { HostLessPackageInfo } from "@/wab/devflags";
+import { HostLessPackageInfo } from "@/wab/shared/devflags";
 import {
+  ApiPermission,
+  ApiResource,
+  ApiTeam,
+  ApiUser,
   PublicStyleSection,
   StyleSectionVisibilities,
   TemplateSpec,
 } from "@/wab/shared/ApiSchema";
+import { accessLevelRank } from "@/wab/shared/EntUtil";
 import {
   FRAME_CAP,
   FREE_CONTAINER_CAP,
@@ -13,7 +18,9 @@ import {
   LAYOUT_CONTAINER_CAP,
   VERT_CONTAINER_CAP,
 } from "@/wab/shared/Labels";
-import { smartHumanize } from "@/wab/strs";
+import { getAccessLevelToResource } from "@/wab/shared/perms";
+import { isEnterprise } from "@/wab/shared/pricing/pricing-utils";
+import { smartHumanize } from "@/wab/shared/strs";
 import { merge } from "lodash";
 
 export const BASIC_ALIASES = [
@@ -160,7 +167,7 @@ export interface UiConfig {
   pageTemplates?: TemplateSpec[];
   insertableTemplates?: TemplateSpec[];
   leftTabs?: Record<LeftTabUiKey, UiAccess>;
-  projectConfigs?: Record<ProjectConfig, boolean>;
+  projectConfigs?: Record<ProjectConfig, boolean> | boolean;
   brand?: {
     logoImgSrc?: string;
     logoHref?: string;
@@ -240,7 +247,7 @@ export function mergeUiConfigs(
     ),
     pageTemplates: mergedFirst(configs.map((c) => c.pageTemplates)),
     insertableTemplates: mergedFirst(configs.map((c) => c.insertableTemplates)),
-    projectConfigs: mergeshallowObjs(configs.map((c) => c.projectConfigs)),
+    projectConfigs: mergeBooleanObjs(configs.map((c) => c.projectConfigs)),
     // Deep merge `brand`
     brand: merge({}, ...configs.map((c) => c.brand)),
   };
@@ -377,11 +384,27 @@ const LEFT_TAB_CONTENT_CREATOR_DEFAULT: Record<LeftTabUiKey, UiAccess> = {
 
 export function canEditProjectConfig(
   config: UiConfig,
-  projectConfig: ProjectConfig
+  projectConfig?: ProjectConfig
 ) {
-  if (!config.projectConfigs) {
+  if (typeof config.projectConfigs === "boolean") {
+    return config.projectConfigs;
+  }
+  if (!projectConfig || !config.projectConfigs) {
     return true;
   }
 
   return config.projectConfigs[projectConfig] ?? true;
+}
+
+export function canEditUiConfig(
+  team: ApiTeam | undefined,
+  resource: ApiResource,
+  user: ApiUser | null,
+  perms: ApiPermission[]
+) {
+  if (!team || !isEnterprise(team.featureTier) || user?.isWhiteLabel) {
+    return false;
+  }
+  const accessLevel = getAccessLevelToResource(resource, user, perms);
+  return accessLevelRank(accessLevel) >= accessLevelRank("editor");
 }

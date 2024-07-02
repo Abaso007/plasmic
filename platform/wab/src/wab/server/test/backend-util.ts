@@ -1,4 +1,4 @@
-import { ensure } from "@/wab/common";
+import { ensure } from "@/wab/shared/common";
 import { sequentially } from "@/wab/commons/asyncutil";
 import { runAppServer } from "@/wab/server/app-backend-real";
 import { ensureDbConnection } from "@/wab/server/db/DbCon";
@@ -127,7 +127,6 @@ export async function createBackend(
         host: `http://localhost:${port}`,
         production: false,
         sessionSecret: "secret",
-        cluster: false,
         mailFrom: "",
         mailUserOps: "",
         mailBcc: "",

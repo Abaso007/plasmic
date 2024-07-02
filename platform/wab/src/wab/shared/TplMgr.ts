@@ -1,4 +1,111 @@
 import {
+  assert,
+  check,
+  ensure,
+  ensureArray,
+  ensureArrayOfInstances,
+  isSubList,
+  leftZip,
+  maybe,
+  maybeInstance,
+  mkShortId,
+  remove,
+  removeWhere,
+  strictFind,
+  tryRemove,
+  uniqueName,
+  withoutNils,
+  xDifference,
+  xGroupBy,
+} from "@/wab/shared/common";
+import {
+  arrayReversed,
+  removeFromArray,
+  tryRemoveFromArray,
+} from "@/wab/commons/collections";
+import { TokenType } from "@/wab/commons/StyleToken";
+import {
+  allComponentVariants,
+  cloneComponent,
+  clonePageMeta,
+  cloneVariant,
+  ComponentType,
+  extractParamsFromPagePath,
+  findStateForParam,
+  getComponentDisplayName,
+  getSubComponents,
+  isCodeComponent,
+  isContextCodeComponent,
+  isFrameComponent,
+  isPageComponent,
+  mkComponent,
+  mkPageMeta,
+  mkVariantGroupArgExpr,
+  PageComponent,
+  removeVariantGroup,
+  tryGetVariantGroupValueFromArg,
+} from "@/wab/shared/core/components";
+import { DEVFLAGS } from "@/wab/shared/devflags";
+import { clone } from "@/wab/shared/core/exprs";
+import { findSpaceForRectSweepRight, Pt, Rect } from "@/wab/shared/geom";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
+import {
+  extractImageAssetUsages,
+  mkImageAsset,
+  removeImageAssetUsage,
+} from "@/wab/shared/core/image-assets";
+import { mkOnChangeParamForState, mkParam } from "@/wab/shared/core/lang";
+import {
+  fixImageAssetRefsForClonedTemplateComponent,
+  upgradeProjectDeps,
+  walkDependencyTree,
+} from "@/wab/shared/core/project-deps";
+import {
+  cloneArenaFrame,
+  ensureActivatedScreenVariantsForArena,
+  ensureFrameSizeForTargetScreenVariant,
+  FrameViewMode,
+  getArenaFrames,
+  getFrameHeight,
+  isComponentArena,
+  isMixedArena,
+  mkArenaFrame,
+  mkMixedArena,
+  normalizeMixedArenaFrames,
+  removeVariantGroupFromArenas,
+  removeVariantsFromArenas,
+} from "@/wab/shared/Arenas";
+import {
+  findAllQueryInvalidationExpr,
+  flattenComponent,
+} from "@/wab/shared/cached-selectors";
+import { toClassName, toVarName } from "@/wab/shared/codegen/util";
+import {
+  deriveDefaultFrameSize,
+  ensureManagedFrameForVariantInComponentArena,
+  ensureRowForVariantGroupInComponentArena,
+  isCustomComponentFrame,
+  isGlobalVariantFrame,
+  isSuperVariantFrame,
+  maybeEnsureManagedFrameForGlobalVariantInComponentArena,
+  mkComponentArena,
+  removeCustomComponentFrame,
+  removeFramesFromComponentArenaForVariants,
+  removeManagedFramesFromComponentArenaForVariantGroup,
+  removeSuperOrGlobalVariantComponentFrame,
+} from "@/wab/shared/component-arenas";
+import { SIZE_PROPS } from "@/wab/shared/core/style-props";
+import { ScreenSizeSpec } from "@/wab/shared/css-size";
+import { CONTENT_LAYOUT_INITIALS } from "@/wab/shared/default-styles";
+import {
+  ARENA_CAP,
+  FRAME_LOWER,
+  MIXIN_CAP,
+  VARIANT_CAP,
+  VARIANT_GROUP_CAP,
+  VARIANT_OPTION_LOWER,
+} from "@/wab/shared/Labels";
+import {
   Arena,
   ArenaFrame,
   Arg,
@@ -39,116 +146,9 @@ import {
   VariantGroup,
   VariantSetting,
   VariantsRef,
-} from "@/wab/classes";
-import {
-  assert,
-  check,
-  ensure,
-  ensureArray,
-  ensureArrayOfInstances,
-  isSubList,
-  leftZip,
-  maybe,
-  maybeInstance,
-  mkShortId,
-  remove,
-  removeWhere,
-  strictFind,
-  tryRemove,
-  uniqueName,
-  withoutNils,
-  xDifference,
-  xGroupBy,
-} from "@/wab/common";
-import {
-  arrayReversed,
-  removeFromArray,
-  tryRemoveFromArray,
-} from "@/wab/commons/collections";
-import { TokenType } from "@/wab/commons/StyleToken";
-import {
-  allComponentVariants,
-  cloneComponent,
-  clonePageMeta,
-  cloneVariant,
-  ComponentType,
-  extractParamsFromPagePath,
-  findStateForParam,
-  getComponentDisplayName,
-  getSubComponents,
-  isCodeComponent,
-  isContextCodeComponent,
-  isFrameComponent,
-  isPageComponent,
-  mkComponent,
-  mkPageMeta,
-  mkVariantGroupArgExpr,
-  PageComponent,
-  removeVariantGroup,
-  tryGetVariantGroupValueFromArg,
-} from "@/wab/components";
-import { DEVFLAGS } from "@/wab/devflags";
-import { clone } from "@/wab/exprs";
-import { findSpaceForRectSweepRight, Pt, Rect } from "@/wab/geom";
-import { ImageAssetType } from "@/wab/image-asset-type";
-import {
-  extractImageAssetUsages,
-  mkImageAsset,
-  removeImageAssetUsage,
-} from "@/wab/image-assets";
-import { mkOnChangeParamForState, mkParam } from "@/wab/lang";
-import {
-  fixImageAssetRefsForClonedTemplateComponent,
-  upgradeProjectDeps,
-  walkDependencyTree,
-} from "@/wab/project-deps";
-import {
-  cloneArenaFrame,
-  ensureActivatedScreenVariantsForArena,
-  ensureFrameSizeForTargetScreenVariant,
-  FrameViewMode,
-  getArenaFrames,
-  getFrameHeight,
-  isComponentArena,
-  isMixedArena,
-  mkArenaFrame,
-  mkMixedArena,
-  normalizeMixedArenaFrames,
-  removeVariantGroupFromArenas,
-  removeVariantsFromArenas,
-} from "@/wab/shared/Arenas";
-import {
-  findAllQueryInvalidationExpr,
-  flattenComponent,
-} from "@/wab/shared/cached-selectors";
-import { toClassName, toVarName } from "@/wab/shared/codegen/util";
-import {
-  deriveDefaultFrameSize,
-  ensureManagedFrameForVariantInComponentArena,
-  ensureRowForVariantGroupInComponentArena,
-  isCustomComponentFrame,
-  isGlobalVariantFrame,
-  isSuperVariantFrame,
-  maybeEnsureManagedFrameForGlobalVariantInComponentArena,
-  mkComponentArena,
-  removeCustomComponentFrame,
-  removeFramesFromComponentArenaForVariants,
-  removeManagedFramesFromComponentArenaForVariantGroup,
-  removeSuperOrGlobalVariantComponentFrame,
-} from "@/wab/shared/component-arenas";
-import { instUtil } from "@/wab/shared/core/InstUtil";
-import { typeFactory } from "@/wab/shared/core/model-util";
-import { SIZE_PROPS } from "@/wab/shared/core/style-props";
-import { ScreenSizeSpec } from "@/wab/shared/Css";
-import { CONTENT_LAYOUT_INITIALS } from "@/wab/shared/default-styles";
-import {
-  ARENA_CAP,
-  FRAME_LOWER,
-  MIXIN_CAP,
-  VARIANT_CAP,
-  VARIANT_GROUP_CAP,
-  VARIANT_OPTION_LOWER,
-} from "@/wab/shared/Labels";
+} from "@/wab/shared/model/classes";
+import { instUtil } from "@/wab/shared/model/InstUtil";
+import { typeFactory } from "@/wab/shared/model/model-util";
 import {
   addScreenSizeToPageArenas,
   ensureManagedRowForVariantInPageArena,
@@ -217,13 +217,13 @@ import {
   isFrameRootTplComponent,
   removeReferencingLinks,
   removeReferencingTypeInstances,
-} from "@/wab/sites";
+} from "@/wab/shared/core/sites";
 import {
   mkGlobalVariantSplit,
   removeVariantGroupFromSplits,
   SplitStatus,
   SplitType,
-} from "@/wab/splits";
+} from "@/wab/shared/core/splits";
 import {
   genOnChangeParamName,
   isPrivateState,
@@ -231,14 +231,14 @@ import {
   mkState,
   removeComponentState,
   updateStateAccessType,
-} from "@/wab/states";
+} from "@/wab/shared/core/states";
 import {
   changeTokenUsage,
   cloneMixin,
   cloneStyleToken,
   extractTokenUsages,
   mkRuleSet,
-} from "@/wab/styles";
+} from "@/wab/shared/core/styles";
 import {
   cloneVariantSetting,
   findExprsInComponent,
@@ -265,7 +265,7 @@ import {
   TplNamable,
   trackComponentSite,
   walkTpls,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import { isString, memoize, pickBy, uniqBy } from "lodash";
 import flatten from "lodash/flatten";
 import has from "lodash/has";
@@ -545,7 +545,12 @@ export class TplMgr {
 
     removeVariantsFromArenas(this.site(), variants, component);
 
-    // Now actually detach the Variant from the model tree
+    this.tryRemoveVariantFromVariantedRuleSets(variants);
+    this.tryRemoveVariantFromVariantedValue(variants);
+
+    // The last thing we do is detach the variants from their parent groups
+    // This is to ensure that we are able to use the parent in the previous
+    // steps
     for (const v of variants) {
       if (isStyleVariant(v)) {
         tryRemove(
@@ -557,9 +562,6 @@ export class TplMgr {
         remove(group.variants, v);
       }
     }
-
-    this.tryRemoveVariantFromVariantedRuleSets(variants);
-    this.tryRemoveVariantFromVariantedValue(variants);
 
     ensureScreenVariantsOrderOnMatrices(this.site());
   }
@@ -831,7 +833,10 @@ export class TplMgr {
   }
 
   removeGlobalVariantGroup(group: VariantGroup) {
-    this.tryRemoveVariant(group.variants, undefined);
+    // Create a copy of the group's variants, since removing variants
+    // will detach them from the group. Ensure that we pass a stable
+    // reference
+    this.tryRemoveVariant([...group.variants], undefined);
     removeVariantGroupFromArenas(this.site(), group, undefined);
     remove(this.site().globalVariantGroups, group);
     removeVariantGroupFromSplits(this.site(), group);
@@ -1250,6 +1255,12 @@ export class TplMgr {
     });
   }
 
+  addComponentToDefaultComponents(component: Component, kind: string) {
+    if (!this.site().defaultComponents[kind]) {
+      this.site().defaultComponents[kind] = component;
+    }
+  }
+
   removeComponentQuery(component: Component, query: ComponentDataQuery) {
     removeFromArray(component.dataQueries, query);
     this.clearReferencesToRemovedQueries(query.uuid);
@@ -1553,7 +1564,7 @@ export class TplMgr {
         }
       }
     }
-    setPageSizeType(component, "stretch");
+    setPageSizeType(component as PageComponent, "stretch");
 
     // Turn all containing artboards into stretchy artboards
     for (const frame of getReferencingFrames(this.site(), component)) {
@@ -1576,7 +1587,9 @@ export class TplMgr {
   convertPageToComponent(component: Component) {
     component.pageMeta = undefined;
     component.type = ComponentType.Plain;
-    removeReferencingLinks(this.site(), component);
+    if (isPageComponent(component)) {
+      removeReferencingLinks(this.site(), component);
+    }
 
     const existingPageArena = getPageArena(this.site(), component);
     if (existingPageArena) {

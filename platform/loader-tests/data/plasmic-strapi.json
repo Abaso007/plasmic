@@ -206,7 +206,10 @@
               "children": { "type": "component", "name": "StrapiField" }
             }
           },
-          "__type": "CodeComponentMeta"
+          "__type": "CodeComponentMeta",
+          "thumbnailUrl": null,
+          "section": null,
+          "interactionVariantMeta": {}
         },
         "26311012": {
           "type": { "__ref": "26311035" },
@@ -270,7 +273,10 @@
           "styleSections": null,
           "helpers": null,
           "defaultSlotContents": {},
-          "__type": "CodeComponentMeta"
+          "__type": "CodeComponentMeta",
+          "thumbnailUrl": null,
+          "section": null,
+          "interactionVariantMeta": {}
         },
         "26311016": {
           "type": { "__ref": "cvecJliDifJb" },
@@ -375,7 +381,10 @@
           "styleSections": null,
           "helpers": null,
           "defaultSlotContents": {},
-          "__type": "CodeComponentMeta"
+          "__type": "CodeComponentMeta",
+          "thumbnailUrl": null,
+          "section": null,
+          "interactionVariantMeta": {}
         },
         "26311022": {
           "variants": [{ "__ref": "60773007" }],
@@ -765,7 +774,7 @@
         }
       },
       "deps": [],
-      "version": "229-add-class-type-default-styles"
+      "version": "232-remove-viewport-height"
     }
   ],
   [
@@ -877,7 +886,6 @@
           "uuid": "W5icQf57hH",
           "width": 1366,
           "height": 768,
-          "viewportHeight": 768,
           "container": { "__ref": "954020" },
           "lang": "English",
           "pinnedVariants": {},
@@ -1859,7 +1867,7 @@
         }
       },
       "deps": ["c30818bb-2f70-4079-bc4d-65eaecf566f6"],
-      "version": "229-add-class-type-default-styles"
+      "version": "232-remove-viewport-height"
     }
   ]
 ]

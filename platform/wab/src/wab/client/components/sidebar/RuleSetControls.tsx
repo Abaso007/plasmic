@@ -1,12 +1,16 @@
 import { Matcher } from "@/wab/client/components/view-common";
 import { XMultiSelect } from "@/wab/client/components/XMultiSelect";
-import { filterFalsy } from "@/wab/common";
-import { DEVFLAGS } from "@/wab/devflags";
+import { ensure, filterFalsy } from "@/wab/shared/common";
+import { CodeComponent } from "@/wab/shared/core/components";
+import {
+  getInteractionVariantMeta,
+  mkCodeComponentInteractionVariantKey,
+} from "@/wab/shared/code-components/interaction-variants";
 import {
   getApplicableSelectors,
   getPseudoSelector,
   oppositeSelectorDisplayName,
-} from "@/wab/styles";
+} from "@/wab/shared/core/styles";
 import { Tooltip } from "antd";
 import L from "lodash";
 import { default as React, useLayoutEffect, useState } from "react";
@@ -23,6 +27,7 @@ export interface SelectorsInputProps {
   className?: string;
   focusedClassName?: string;
   forRoot?: boolean;
+  codeComponent?: CodeComponent;
 }
 
 export function SelectorsInput({
@@ -37,24 +42,41 @@ export function SelectorsInput({
   className,
   focusedClassName,
   forRoot,
+  codeComponent,
 }: SelectorsInputProps) {
-  const nativeOptions = getApplicableSelectors(
-    forTag,
-    forPrivateStyleVariant,
-    forRoot ?? false
-  ).map((op) => op.displayName);
+  const nativeOptions = !codeComponent
+    ? getApplicableSelectors(
+        forTag,
+        forPrivateStyleVariant,
+        forRoot ?? false
+      ).map((op) => op.displayName)
+    : [];
+
+  const interactionVariantsMeta = codeComponent
+    ? codeComponent.codeComponentMeta.interactionVariantMeta
+    : {};
+
+  const codeComponentOptions = Object.values(interactionVariantsMeta).map(
+    (e) => e.displayName
+  );
+
+  const codeComponentDisplayNameToKey = Object.entries(
+    interactionVariantsMeta
+  ).reduce((acc, [key, value]) => {
+    acc[value.displayName] = mkCodeComponentInteractionVariantKey(key);
+    return acc;
+  }, {} as Record<string, string>);
 
   const [text, setText] = useState("");
   const matcher = new Matcher(text);
   const dynOptions = filterFalsy([
-    ...nativeOptions
+    ...[...nativeOptions, ...codeComponentOptions]
       .filter(
         (opt) =>
           !selectors.includes(opt) &&
           !selectors.includes(oppositeSelectorDisplayName(opt))
       )
       .filter((opt) => matcher.matches(opt)),
-    DEVFLAGS.demo ? !nativeOptions.includes(text) && text : undefined,
   ]);
 
   const [keepOpen, setKeepOpen] = useState(false);
@@ -63,11 +85,46 @@ export function SelectorsInput({
     setKeepOpen(true);
   }, []);
 
+  function getSelectorKey(sel: string) {
+    if (!codeComponent) {
+      // If we are dealing with native options, we will just use the selector itself as the key
+      return sel;
+    }
+    // If we are dealing with code component options, we will convert the display name to a key
+    const key = ensure(
+      codeComponentDisplayNameToKey[sel],
+      `Expected to find an key for the selector ${sel} in the code component meta`
+    );
+    return key;
+  }
+
+  function ensureInteractionVariantMeta(selector: string) {
+    return ensure(
+      getInteractionVariantMeta(interactionVariantsMeta, selector),
+      `Expected interaction variant selector meta to selector="${selector}" in the code component ${codeComponent?.name}`
+    );
+  }
+
+  function getCssSelector(selector: string) {
+    if (!codeComponent) {
+      return getPseudoSelector(selector).cssSelector;
+    }
+    return ensureInteractionVariantMeta(selector).cssSelector;
+  }
+
+  function getDisplayName(selector: string) {
+    if (!codeComponent) {
+      return selector;
+    }
+
+    return ensureInteractionVariantMeta(selector).displayName;
+  }
+
   return (
     <XMultiSelect
       placeholder={"Enter CSS selectors"}
       autoFocus={autoFocus}
-      selectedItems={selectors}
+      selectedItems={selectors.map((sel) => getDisplayName(sel))}
       options={dynOptions}
       downshiftProps={{
         isOpen: keepOpen,
@@ -85,29 +142,20 @@ export function SelectorsInput({
       onInputValueChange={(text) => setText(text)}
       className={className}
       focusedClassName={focusedClassName}
-      renderOption={(sel) =>
-        nativeOptions.includes(sel) ? (
-          <Tooltip
-            title={`This is the ${
-              getPseudoSelector(sel).cssSelector
-            } selector in CSS`}
-          >
-            {matcher.boldSnippets(sel)}
-          </Tooltip>
-        ) : (
-          <>
-            {matcher.boldSnippets(sel)}{" "}
-            <span className={"SelectorsControl__CustomOptionLabel"}>
-              custom selector
-            </span>
-          </>
-        )
-      }
+      renderOption={(sel) => (
+        <Tooltip
+          title={`This is the ${getCssSelector(
+            getSelectorKey(sel)
+          )} selector in CSS`}
+        >
+          {matcher.boldSnippets(sel)}
+        </Tooltip>
+      )}
       onSelect={(sel) => {
-        onChange([...selectors, sel]);
+        onChange([...selectors, getSelectorKey(sel)]);
         return true;
       }}
-      onUnselect={(sel) => onChange(L.without(selectors, sel))}
+      onUnselect={(sel) => onChange(L.without(selectors, getSelectorKey(sel)))}
       filterOptions={(options, input) =>
         !input
           ? options

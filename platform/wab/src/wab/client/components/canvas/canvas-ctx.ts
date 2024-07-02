@@ -1,5 +1,5 @@
 /// <reference types="@types/resize-observer-browser" />
-import { ArenaFrame } from "@/wab/classes";
+import { handleError } from "@/wab/client/ErrorNotifications";
 import { CodeFetchersRegistry } from "@/wab/client/code-fetchers";
 import {
   CanvasFrameInfo,
@@ -14,16 +14,18 @@ import {
 import * as domMod from "@/wab/client/dom";
 import { NodeAndOffset } from "@/wab/client/dom";
 import { scriptExec, upsertJQSelector } from "@/wab/client/dom-utils";
-import { handleError, reportError } from "@/wab/client/ErrorNotifications";
 import { StudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
 import { ViewCtx } from "@/wab/client/studio-ctx/view-ctx";
-import * as common from "@/wab/common";
-import { ensure, ensureInstance } from "@/wab/common";
-import { ComponentType, isPageComponent } from "@/wab/components";
-import { DEVFLAGS } from "@/wab/devflags";
-import { Box } from "@/wab/geom";
 import {
-  DEFAULT_INITIAL_PAGE_FRAME_SIZE,
+  ensure,
+  ensureInstance,
+  spawn,
+  spawnWrapper,
+  withTimeout,
+} from "@/wab/shared/common";
+import { DEVFLAGS } from "@/wab/shared/devflags";
+import { Box } from "@/wab/shared/geom";
+import {
   getFrameHeight,
   isHeightAutoDerived,
   updateAutoDerivedFrameHeight,
@@ -34,10 +36,9 @@ import {
 } from "@/wab/shared/cached-selectors";
 import { getBuiltinComponentRegistrations } from "@/wab/shared/code-components/builtin-code-components";
 import { CodeComponentsRegistry } from "@/wab/shared/code-components/code-components";
+import { ArenaFrame } from "@/wab/shared/model/classes";
 import { CodeLibraryRegistration } from "@/wab/shared/register-library";
-import { getPageFrameSizeType } from "@/wab/shared/sizingutils";
-import { getFrameContainerType } from "@/wab/sites";
-import { getPublicUrl } from "@/wab/urls";
+import { getPublicUrl } from "@/wab/shared/urls";
 import {
   ComponentRegistration,
   CustomFunctionRegistration,
@@ -47,12 +48,18 @@ import { notification } from "antd";
 import $ from "jquery";
 import L from "lodash";
 import debounce from "lodash/debounce";
-import { autorun, Lambda, observable, runInAction } from "mobx";
+import { Lambda, autorun, observable, runInAction } from "mobx";
 import React from "react";
 
 declare const COMMITHASH: string;
 
 let gCanvasCtxIndex = 0;
+
+/**
+ * Timeout for waiting for canvas-ctx to be ready.
+ * We are generous here because we don't want to timeout too early
+ */
+const CANVAS_CTX_TIMEOUT_PERIOD = 3 * 60 * 1000; // 3 minutes
 
 export class CanvasCtx {
   /**
@@ -111,7 +118,7 @@ export class CanvasCtx {
     const previousFetch = this._hostLessPkgsLock;
     this.updatingCcRegistryCount++;
     this._hostLessPkgsLock = new Promise(
-      common.spawnWrapper(async (resolve: () => void) => {
+      spawnWrapper(async (resolve: () => void) => {
         await previousFetch;
         const pkgsData = await getSortedHostLessPkgs(pkgs);
         runInAction(() => {
@@ -140,7 +147,7 @@ export class CanvasCtx {
 
   private updatePkgsList(pkgs: string[]) {
     if (pkgs.some((pkg) => !this.installedHostLessPkgs.has(pkg))) {
-      common.spawn(this.updateCcRegistry(pkgs));
+      spawn(this.updateCcRegistry(pkgs));
     }
   }
 
@@ -159,19 +166,6 @@ export class CanvasCtx {
     arenaFrame: ArenaFrame,
     sc: StudioCtx
   ) {
-    async function awaitOrLog(promise: Promise<any>, errorMsg: string) {
-      let resolved = false;
-      promise
-        .then(() => (resolved = true))
-        .catch((error) => reportError(error));
-      setTimeout(() => {
-        if (!resolved) {
-          reportError(new Error(errorMsg));
-        }
-      }, 10000);
-      return await promise;
-    }
-
     this.installedHostLessPkgs.clear();
     this._$viewport = $viewport;
     this._win = ensure(
@@ -217,9 +211,10 @@ export class CanvasCtx {
       })
     );
     yield "user-body-wait";
-    this._$userBody = await awaitOrLog(
+    this._$userBody = await withTimeout(
       this.waitForUserBody(),
-      "Couldn't get userBody"
+      "Couldn't get userBody",
+      CANVAS_CTX_TIMEOUT_PERIOD
     );
     // We reinsert things because some frameworks (Remix Hydrogen dev server) blow away the entire document.
     // We also do it earlier so that we can intercept clicks as much as possible, rather than waiting for __wab_user_body first.
@@ -248,11 +243,19 @@ export class CanvasCtx {
     yield "script-wait";
     scriptExec(
       this._win,
-      await awaitOrLog(getCanvasPkgs(), "Couldn't get canvasPkgs.")
+      await withTimeout(
+        getCanvasPkgs(),
+        "Couldn't get canvasPkgs.",
+        CANVAS_CTX_TIMEOUT_PERIOD
+      )
     );
     scriptExec(
       this._win,
-      await awaitOrLog(getReactWebBundle(), "Couldn't get reactWebBundle.")
+      await withTimeout(
+        getReactWebBundle(),
+        "Couldn't get reactWebBundle.",
+        CANVAS_CTX_TIMEOUT_PERIOD
+      )
     );
 
     // Overwrite the default executePlasmicDataOp with a custom one for in-studio use
@@ -272,9 +275,10 @@ export class CanvasCtx {
       this.updatePkgsList(usedHostLessPkgs(sc.site))
     );
     yield "hostless-wait";
-    await awaitOrLog(
+    await withTimeout(
       this.hostLessPkgsLock,
-      "Couldn't acquire hostLessPkgsLock."
+      "Couldn't acquire hostLessPkgsLock.",
+      CANVAS_CTX_TIMEOUT_PERIOD
     );
 
     const hostWin = (DEVFLAGS.artboardEval ? this._win : window) as any;
@@ -343,7 +347,7 @@ export class CanvasCtx {
       { maxWait: 500 }
     );
 
-    common.spawn(
+    spawn(
       this.waitForUserBody().then(($userBody) => {
         // If there's already a resizeObserver, it might be from another frame
         // so we just disconnect it to then reconnect to a diff dom element
@@ -595,20 +599,14 @@ export class CanvasCtx {
   private bridgeDispose: () => void | undefined;
   rerender(children: React.ReactNode, viewCtx: ViewCtx) {
     const frame = viewCtx.arenaFrame();
-    const component = frame.container.component;
 
     const makeFrameInfo = (): CanvasFrameInfo => ({
       viewMode: frame.viewMode as CanvasFrameInfo["viewMode"],
+      height: frame.height,
+      isHeightAutoDerived: isHeightAutoDerived(frame),
       bgColor: frame.bgColor
         ? makeTokenRefResolver(viewCtx.site)(frame.bgColor) ?? frame.bgColor
         : undefined,
-      viewportHeight: frame.viewportHeight ?? undefined,
-      pageSizeType: isPageComponent(component)
-        ? getPageFrameSizeType(frame)
-        : undefined,
-      containerType: getFrameContainerType(frame),
-      defaultInitialPageFrameSize: DEFAULT_INITIAL_PAGE_FRAME_SIZE,
-      componentType: component.type as ComponentType,
     });
 
     const frameInfo = observable.box<CanvasFrameInfo>(makeFrameInfo());

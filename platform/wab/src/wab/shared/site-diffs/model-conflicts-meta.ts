@@ -1,19 +1,24 @@
-import * as classes from "@/wab/classes";
-import { HostLessPackageInfo, ProjectDependency } from "@/wab/classes";
-import { meta } from "@/wab/classes-metas";
 import {
+  TypeStamped,
   assert,
   ensure,
   ensureInstance,
   switchType,
-  TypeStamped,
   unexpected,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { Leaves, Paths } from "@/wab/commons/types";
-import { isCodeComponent, isFrameComponent } from "@/wab/components";
-import { isWeakRefField, Type } from "@/wab/model/model-meta";
+import { isCodeComponent, isFrameComponent } from "@/wab/shared/core/components";
+import { isSlot } from "@/wab/shared/SlotUtils";
+import { TplMgr } from "@/wab/shared/TplMgr";
 import { Bundler } from "@/wab/shared/bundler";
-import { NodeCtx } from "@/wab/shared/core/model-tree-util";
+import * as classes from "@/wab/shared/model/classes";
+import {
+  HostLessPackageInfo,
+  ProjectDependency,
+} from "@/wab/shared/model/classes";
+import { meta } from "@/wab/shared/model/classes-metas";
+import { Type, isWeakRefField } from "@/wab/shared/model/model-meta";
+import { NodeCtx } from "@/wab/shared/model/model-tree-util";
 import {
   mergeComponentVariants,
   mergeTplNodeChildren,
@@ -26,8 +31,6 @@ import {
   DirectConflictPickMap,
   generateIidForInst,
 } from "@/wab/shared/site-diffs/merge-core";
-import { isSlot } from "@/wab/shared/SlotUtils";
-import { TplMgr } from "@/wab/shared/TplMgr";
 import { isString } from "lodash";
 
 export type MaybeWithPrefix<T extends string | null> = T extends null
@@ -492,7 +495,6 @@ export const modelConflictsMeta: ModelConflictsMeta = {
     top: "harmless",
     uuid: "unexpected",
     viewMode: "harmless",
-    viewportHeight: "harmless",
     width: "harmless",
   },
   RenderFuncType: {
@@ -646,12 +648,18 @@ export const modelConflictsMeta: ModelConflictsMeta = {
     importPath: "generic",
     defaultExport: "generic",
   },
+  CodeComponentInteractionVariantMeta: {
+    cssSelector: "generic",
+    displayName: "generic",
+  },
   CodeComponentMeta: {
     classNameProp: "generic",
     defaultExport: "generic",
     defaultStyles: "generic",
     defaultDisplay: "generic",
     description: "generic",
+    section: "generic",
+    thumbnailUrl: "generic",
     displayName: "generic",
     importName: "generic",
     importPath: "generic",
@@ -665,6 +673,7 @@ export const modelConflictsMeta: ModelConflictsMeta = {
     helpers: "generic",
     styleSections: "generic",
     defaultSlotContents: "contents",
+    interactionVariantMeta: "generic",
   },
   Component: {
     codeComponentMeta: "generic",

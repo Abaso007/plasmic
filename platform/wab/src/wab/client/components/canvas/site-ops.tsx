@@ -1,26 +1,6 @@
-import {
-  Arena,
-  ArenaFrame,
-  Component,
-  ComponentArena,
-  ComponentDataQuery,
-  ComponentVariantGroup,
-  ImageAsset,
-  isKnownComponent,
-  isKnownComponentVariantGroup,
-  Mixin,
-  PageArena,
-  ProjectDependency,
-  Site,
-  Split,
-  State,
-  StyleToken,
-  Variant,
-  VariantGroup,
-} from "@/wab/classes";
 import { AppCtx } from "@/wab/client/app-ctx";
 import { U } from "@/wab/client/cli-routes";
-import { FrameClip } from "@/wab/client/clipboard";
+import { FrameClip } from "@/wab/client/clipboard/local";
 import { toast } from "@/wab/client/components/Messages";
 import { promptRemapCodeComponent } from "@/wab/client/components/modals/codeComponentModals";
 import {
@@ -47,7 +27,7 @@ import {
   switchType,
   uniqueName,
   xAddAll,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { removeFromArray } from "@/wab/commons/collections";
 import { joinReactNodes } from "@/wab/commons/components/ReactUtil";
 import {
@@ -61,10 +41,10 @@ import {
   isPageComponent,
   isPlumeComponent,
   removeVariantGroup,
-} from "@/wab/components";
-import { Pt } from "@/wab/geom";
-import { ImageAssetType } from "@/wab/image-asset-type";
-import { extractTransitiveDepsFromComponents } from "@/wab/project-deps";
+} from "@/wab/shared/core/components";
+import { Pt } from "@/wab/shared/geom";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
+import { extractTransitiveDepsFromComponents } from "@/wab/shared/core/project-deps";
 import {
   deriveInitFrameSettings,
   getActivatedVariantsForFrame,
@@ -80,6 +60,7 @@ import {
   findComponentsUsingComponentVariant,
   findComponentsUsingGlobalVariant,
   findSplitsUsingVariantGroup,
+  findStyleTokensUsingVariantGroup,
   getComponentsUsingImageAsset,
 } from "@/wab/shared/cached-selectors";
 import { toVarName } from "@/wab/shared/codegen/util";
@@ -92,8 +73,7 @@ import {
   isGlobalVariantFrame,
   isSuperVariantFrame,
 } from "@/wab/shared/component-arenas";
-import { convertVariableTypeToWabType } from "@/wab/shared/core/model-util";
-import { parseScreenSpec } from "@/wab/shared/Css";
+import { parseScreenSpec } from "@/wab/shared/css-size";
 import {
   asSvgDataUrl,
   parseDataUrlToSvgXml,
@@ -104,6 +84,27 @@ import {
   MIXIN_LOWER,
   TOKEN_LOWER,
 } from "@/wab/shared/Labels";
+import {
+  Arena,
+  ArenaFrame,
+  Component,
+  ComponentArena,
+  ComponentDataQuery,
+  ComponentVariantGroup,
+  ImageAsset,
+  isKnownComponent,
+  isKnownComponentVariantGroup,
+  Mixin,
+  PageArena,
+  ProjectDependency,
+  Site,
+  Split,
+  State,
+  StyleToken,
+  Variant,
+  VariantGroup,
+} from "@/wab/shared/model/classes";
+import { convertVariableTypeToWabType } from "@/wab/shared/model/model-util";
 import {
   getFrameColumnIndex,
   removeManagedFramesFromPageArenaForVariants,
@@ -146,26 +147,26 @@ import {
   getResponsiveStrategy,
   getSiteArenas,
   visitComponentRefs,
-} from "@/wab/sites";
+} from "@/wab/shared/core/sites";
 import {
   findImplicitUsages,
   isStateUsedInExpr,
   removeComponentState,
   StateType,
   updateStateAccessType,
-} from "@/wab/states";
+} from "@/wab/shared/core/states";
 import {
   changeTokenUsage,
   extractMixinUsages,
   extractTokenUsages,
-} from "@/wab/styles";
+} from "@/wab/shared/core/styles";
 import {
   findExprsInComponent,
   flattenTpls,
   isTplSlot,
   isTplVariantable,
   replaceTplTreeByEmptyBox,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import { notification } from "antd";
 import L from "lodash";
 import pluralize from "pluralize";
@@ -220,7 +221,7 @@ export class SiteOps {
     this.addScreenSizeToPageArenas(matchingSize);
   }
 
-  pasteFrameClip(clip: FrameClip, originalFrame?: ArenaFrame) {
+  pasteFrameClip(clip: FrameClip, originalFrame?: ArenaFrame): boolean {
     const arena = ensure(
       this.studioCtx.currentArena,
       "studioCtx should have a currentArena to allow pasting a frame clip"
@@ -234,6 +235,7 @@ export class SiteOps {
       );
       this.studioCtx.setStudioFocusOnFrame({ frame: newFrame, autoZoom: true });
       this.studioCtx.centerFocusedFrame();
+      return true;
     } else if (isComponentArena(arena)) {
       if (arena.component === newFrame.container.component) {
         const originalFramePosition =
@@ -255,16 +257,20 @@ export class SiteOps {
           autoZoom: true,
         });
         this.studioCtx.centerFocusedFrame(this.studioCtx.zoom);
+        return true;
       } else {
         notification.error({
           message: `You cannot paste an artboard for "${newFrame.container.component.name}" here.`,
         });
+        return false;
       }
     } else if (isPageArena(arena)) {
       notification.error({
         message: `You cannot paste an artboard here.`,
       });
+      return false;
     }
+    return false;
   }
 
   clearFrameComboSettings(frame: ArenaFrame) {
@@ -499,7 +505,7 @@ export class SiteOps {
         title: (
           <div>
             Are you sure you want to delete variant{" "}
-            <strong>{makeVariantName({ variant })}</strong>?
+            <strong>{makeVariantName({ variant, site: this.site })}</strong>?
           </div>
         ),
         message: (
@@ -546,10 +552,25 @@ export class SiteOps {
   ) {
     const usingComps = this.findComponentsUsingVariantGroup(group, component);
     const usingSplits = findSplitsUsingVariantGroup(this.site, group);
+    const usingTokens = findStyleTokensUsingVariantGroup(this.site, group);
+
+    const renderUsageInfo = (objectType: string, names: React.ReactNode[]) => {
+      if (names.length > 0) {
+        return (
+          <p>
+            It is being used by {pluralize(objectType, names.length)}{" "}
+            {joinReactNodes(names, ", ")}.
+          </p>
+        );
+      }
+      return null;
+    };
+
     if (
       opts.confirm === "always" ||
       usingComps.size > 0 ||
-      usingSplits.length > 0
+      usingSplits.length > 0 ||
+      usingTokens.length > 0
     ) {
       return await reactConfirm({
         title: (
@@ -560,27 +581,17 @@ export class SiteOps {
         ),
         message: (
           <>
-            {usingComps.size > 0 && (
-              <p>
-                It is being used by {pluralize("component", usingComps.size)}{" "}
-                {joinReactNodes(
-                  [...usingComps].map((comp) =>
-                    makeComponentName(this.site, comp)
-                  ),
-                  ", "
-                )}
-                .
-              </p>
+            {renderUsageInfo(
+              "component",
+              [...usingComps].map((c) => makeComponentName(this.site, c))
             )}
-            {usingSplits.length > 0 && (
-              <p>
-                It is being used by content{" "}
-                {pluralize("split", usingSplits.length)}{" "}
-                {joinReactNodes(
-                  usingSplits.map((split) => split.name),
-                  ", "
-                )}
-              </p>
+            {renderUsageInfo(
+              "split",
+              usingSplits.map((split) => split.name)
+            )}
+            {renderUsageInfo(
+              "style token",
+              usingTokens.map((token) => token.name)
             )}
           </>
         ),

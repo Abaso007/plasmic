@@ -1,101 +1,5 @@
-import {
-  CodeLibrary,
-  Component,
-  ComponentDataQuery,
-  ComponentVariantGroup,
-  CustomFunction,
-  ensureKnownNamedState,
-  ensureKnownVariantGroup,
-  Expr,
-  ImageAsset,
-  ImageAssetRef,
-  isKnownColorPropType,
-  isKnownCustomCode,
-  isKnownDefaultStylesClassNamePropType,
-  isKnownDefaultStylesPropType,
-  isKnownEventHandler,
-  isKnownExprText,
-  isKnownFunctionType,
-  isKnownGlobalVariantSplitContent,
-  isKnownImageAssetRef,
-  isKnownNamedState,
-  isKnownObjectPath,
-  isKnownRawText,
-  isKnownRenderExpr,
-  isKnownRenderFuncType,
-  isKnownStateParam,
-  isKnownStyleExpr,
-  isKnownStyleScopeClassNamePropType,
-  isKnownStyleTokenRef,
-  isKnownTplComponent,
-  isKnownTplSlot,
-  isKnownTplTag,
-  isKnownVirtualRenderExpr,
-  PageMeta,
-  Param,
-  RichText,
-  Site,
-  State,
-  StyleToken,
-  TplComponent,
-  TplNode,
-  TplSlot,
-  TplTag,
-  Variant,
-  VariantGroup,
-  VariantSetting,
-} from "@/wab/classes";
-import {
-  arrayEq,
-  assert,
-  ensure,
-  ensureArray,
-  isNonNil,
-  strict,
-  tuple,
-  UnexpectedTypeError,
-  uniqueName,
-  withDefault,
-  withDefaultFunc,
-  withoutNils,
-} from "@/wab/common";
 import { arrayReversed } from "@/wab/commons/collections";
 import { DeepMap } from "@/wab/commons/deep-map";
-import {
-  findVariantGroupForParam,
-  getCodeComponentHelperImportName,
-  getComponentDisplayName,
-  getNonVariantParams,
-  getRealParams,
-  getRepetitionIndexName,
-  getSuperComponents,
-  getSuperComponentVariantToComponent,
-  getVariantParams,
-  isCodeComponent,
-  isHostLessCodeComponent,
-  isPageComponent,
-  tryGetVariantGroupValueFromArg,
-} from "@/wab/components";
-import { getCssRulesFromRs, tryGetBrowserCssInitial } from "@/wab/css";
-import {
-  applyPlasmicUserDevFlagOverrides,
-  DEVFLAGS,
-  DevFlagsType,
-  getProjectFlags,
-} from "@/wab/devflags";
-import {
-  code as toCode,
-  codeLit,
-  ExprCtx,
-  extractReferencedParam,
-  getCodeExpressionWithFallback,
-  getRawCode,
-  jsonLit,
-  removeFallbackFromDataSourceOp,
-  tryExtractJson,
-} from "@/wab/exprs";
-import { ImageAssetType } from "@/wab/image-asset-type";
-import { ParamExportType } from "@/wab/lang";
 import { AppAuthProvider, ProjectId } from "@/wab/shared/ApiSchema";
 import {
   allCustomFunctions,
@@ -112,6 +16,10 @@ import {
   customFunctionId,
   isCodeComponentWithHelpers,
 } from "@/wab/shared/code-components/code-components";
+import {
+  isTplRootWithCodeComponentInteractionVariants,
+  withoutInteractionVariantPrefix,
+} from "@/wab/shared/code-components/interaction-variants";
 import { ComponentGenHelper } from "@/wab/shared/codegen/codegen-helpers";
 import {
   extractUsedFontsFromComponents,
@@ -226,25 +134,189 @@ import {
   serializeVariantGroupMembersType,
   serializeVariantsArgsTypeContent,
 } from "@/wab/shared/codegen/variants";
-import { isImageType, wabToTsType } from "@/wab/shared/core/model-util";
+import {
+  arrayEq,
+  assert,
+  ensure,
+  ensureArray,
+  isNonNil,
+  strict,
+  tuple,
+  UnexpectedTypeError,
+  uniqueName,
+  withDefault,
+  withDefaultFunc,
+  withoutNils,
+} from "@/wab/shared/common";
+import {
+  findVariantGroupForParam,
+  getCodeComponentHelperImportName,
+  getComponentDisplayName,
+  getNonVariantParams,
+  getRealParams,
+  getRepetitionElementName,
+  getRepetitionIndexName,
+  getSuperComponents,
+  getSuperComponentVariantToComponent,
+  getVariantParams,
+  isCodeComponent,
+  isHostLessCodeComponent,
+  isPageComponent,
+  PageComponent,
+  tryGetVariantGroupValueFromArg,
+} from "@/wab/shared/core/components";
+import {
+  codeLit,
+  ExprCtx,
+  extractReferencedParam,
+  getCodeExpressionWithFallback,
+  getRawCode,
+  jsonLit,
+  removeFallbackFromDataSourceOp,
+  code as toCode,
+  tryExtractJson,
+} from "@/wab/shared/core/exprs";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
+import { ParamExportType } from "@/wab/shared/core/lang";
 import {
   isTagInline,
   normalizeMarkers,
 } from "@/wab/shared/core/rich-text-util";
 import {
+  allImageAssets,
+  allImportedStyleTokensWithProjectInfo,
+  allMixins,
+  allStyleTokens,
+  allStyleTokensDict,
+  CssProjectDependencies,
+  isHostLessPackage,
+} from "@/wab/shared/core/sites";
+import { SplitStatus } from "@/wab/shared/core/splits";
+import {
+  DATA_SOURCE_ACTIONS,
+  getLastPartOfImplicitStateName,
+  getStateDisplayName,
+  getStateOnChangePropName,
+  getStateValuePropName,
+  getStateVarName,
+  getVirtualWritableStateInitialValue,
+  isOnChangeParam,
+  isReadonlyState,
+  isWritableState,
+  LOGIN_ACTIONS,
+} from "@/wab/shared/core/states";
+import {
   plasmicImgAttrStyles,
   TPL_COMPONENT_PROPS,
 } from "@/wab/shared/core/style-props";
+import {
+  CssVarResolver,
+  defaultStyleClassNames,
+  getRelevantVariantCombosForTheme,
+  getRelevantVariantCombosForToken,
+  getTriggerableSelectors,
+  hasClassnameOverride,
+  makeBaseRuleNamer,
+  makeCssTokenVarsRules,
+  makeDefaultStylesRules,
+  makeDefaultStyleValuesDict,
+  makeLayoutVarsRules,
+  makeMixinVarsRules,
+  makePseudoClassAwareRuleNamer,
+  makePseudoElementAwareRuleNamer,
+  makeStyleExprClassName,
+  makeStyleScopeClassName,
+  mkComponentRootResetRule,
+  mkThemeStyleRule,
+  showSimpleCssRuleSet,
+  tryAugmentRulesWithScreenVariant,
+} from "@/wab/shared/core/styles";
+import {
+  ancestorsUp,
+  findVariantSettingsUnderTpl,
+  flattenTpls,
+  getAllEventHandlersForTpl,
+  isAttrEventHandler,
+  isTplCodeComponent,
+  isTplComponent,
+  isTplImage,
+  isTplNamable,
+  isTplRepeated,
+  isTplSlot,
+  isTplTag,
+  isTplTagOrComponent,
+  isTplTextBlock,
+  summarizeTpl,
+  tplHasRef,
+  TplTagType,
+  TplTextTag,
+  walkTpls,
+} from "@/wab/shared/core/tpls";
+import { getCssRulesFromRs, tryGetBrowserCssInitial } from "@/wab/shared/css";
+import {
+  applyPlasmicUserDevFlagOverrides,
+  DEVFLAGS,
+  DevFlagsType,
+  getProjectFlags,
+} from "@/wab/shared/devflags";
 import { exprUsesCtxOrFreeVars } from "@/wab/shared/eval/expression-parser";
 import {
   extractAllVariantCombosForText,
   genLocalizationString,
   isLocalizableTextBlock,
-  LocalizableStringSource,
   LOCALIZABLE_HTML_ATTRS,
+  LocalizableStringSource,
   LocalizationConfig,
   makeLocalizationStringKey,
 } from "@/wab/shared/localization";
+import {
+  CodeLibrary,
+  Component,
+  ComponentDataQuery,
+  ComponentVariantGroup,
+  CustomFunction,
+  ensureKnownNamedState,
+  ensureKnownVariantGroup,
+  Expr,
+  ImageAsset,
+  ImageAssetRef,
+  isKnownColorPropType,
+  isKnownCustomCode,
+  isKnownDefaultStylesClassNamePropType,
+  isKnownDefaultStylesPropType,
+  isKnownEventHandler,
+  isKnownExprText,
+  isKnownFunctionType,
+  isKnownGlobalVariantSplitContent,
+  isKnownImageAssetRef,
+  isKnownNamedState,
+  isKnownObjectPath,
+  isKnownRawText,
+  isKnownRenderExpr,
+  isKnownRenderFuncType,
+  isKnownStateParam,
+  isKnownStyleExpr,
+  isKnownStyleScopeClassNamePropType,
+  isKnownStyleTokenRef,
+  isKnownTplComponent,
+  isKnownTplSlot,
+  isKnownTplTag,
+  isKnownVirtualRenderExpr,
+  PageMeta,
+  Param,
+  RichText,
+  Site,
+  State,
+  StyleToken,
+  TplComponent,
+  TplNode,
+  TplSlot,
+  TplTag,
+  Variant,
+  VariantGroup,
+  VariantSetting,
+} from "@/wab/shared/model/classes";
+import { isImageType, wabToTsType } from "@/wab/shared/model/model-util";
 import {
   getPlumeCodegenPlugin,
   PlumeType,
@@ -263,6 +335,7 @@ import {
 } from "@/wab/shared/SlotUtils";
 import { ensureBaseVariant } from "@/wab/shared/TplMgr";
 import { $$$ } from "@/wab/shared/TplQuery";
+import { getIntegrationsUrl, getPublicUrl } from "@/wab/shared/urls";
 import {
   makeGlobalVariantComboSorter,
   makeVariantComboSorter,
@@ -286,72 +359,6 @@ import {
   VariantCombo,
   VariantGroupType,
 } from "@/wab/shared/Variants";
-import {
-  allImageAssets,
-  allImportedStyleTokensWithProjectInfo,
-  allMixins,
-  allStyleTokens,
-  allStyleTokensDict,
-  isHostLessPackage,
-} from "@/wab/sites";
-import { SplitStatus } from "@/wab/splits";
-import {
-  DATA_SOURCE_ACTIONS,
-  getLastPartOfImplicitStateName,
-  getStateDisplayName,
-  getStateOnChangePropName,
-  getStateValuePropName,
-  getStateVarName,
-  getVirtualWritableStateInitialValue,
-  isOnChangeParam,
-  isReadonlyState,
-  isWritableState,
-  LOGIN_ACTIONS,
-} from "@/wab/states";
-import {
-  CssVarResolver,
-  defaultStyleClassNames,
-  getRelevantVariantCombosForTheme,
-  getRelevantVariantCombosForToken,
-  getTriggerableSelectors,
-  hasClassnameOverride,
-  makeBaseRuleNamer,
-  makeCssTokenVarsRules,
-  makeDefaultStylesRules,
-  makeDefaultStyleValuesDict,
-  makeLayoutVarsRules,
-  makeMixinVarsRules,
-  makePseudoClassAwareRuleNamer,
-  makePseudoElementAwareRuleNamer,
-  makeStyleExprClassName,
-  makeStyleScopeClassName,
-  mkComponentRootResetRule,
-  mkThemeStyleRule,
-  showSimpleCssRuleSet,
-  tryAugmentRulesWithScreenVariant,
-} from "@/wab/styles";
-import {
-  ancestorsUp,
-  findVariantSettingsUnderTpl,
-  flattenTpls,
-  getAllEventHandlersForTpl,
-  isAttrEventHandler,
-  isTplCodeComponent,
-  isTplComponent,
-  isTplImage,
-  isTplNamable,
-  isTplRepeated,
-  isTplSlot,
-  isTplTag,
-  isTplTagOrComponent,
-  isTplTextBlock,
-  summarizeTpl,
-  tplHasRef,
-  TplTagType,
-  TplTextTag,
-  walkTpls,
-} from "@/wab/tpls";
-import { getIntegrationsUrl, getPublicUrl } from "@/wab/urls";
 import L, { groupBy, sortBy } from "lodash";
 import memoizeOne from "memoize-one";
 import type { SetRequired } from "type-fest";
@@ -411,6 +418,11 @@ export function exportProjectConfig(
   const fontsCss =
     exportOpts?.fontOpts?.scheme === "none" ? "" : makeCssImports(fontUsages);
 
+  // For loader, infix the css variables from the default styles with the project id.
+  // This is to make sure each project uses the default style specified for it and not
+  // get it overwritten by another project.
+  const shortProjectId = projectId.slice(0, 5);
+
   const resolver = new CssVarResolver(
     allStyleTokens(site, { includeDeps: "all" }),
     allMixins(site, { includeDeps: "all" }),
@@ -418,6 +430,7 @@ export function exportProjectConfig(
     site.activeTheme,
     {
       useCssVariables: true,
+      cssVariableInfix: shortProjectId,
     }
   );
   const rootResetClass = makeRootResetClassName(projectId, {
@@ -440,6 +453,7 @@ export function exportProjectConfig(
         getProjectFlags(site).useWhitespaceNormal
           ? "normal"
           : "enforce",
+      cssVariableInfix: shortProjectId,
     }
   );
 
@@ -868,6 +882,24 @@ export function deriveReactHookSpecs(
   return reactHookSpecs;
 }
 
+export function computeSerializerSiteContext(
+  site: Site
+): SerializerSiteContext {
+  return {
+    projectFlags: getProjectFlags(site),
+    cssProjectDependencies: L.uniqBy(
+      allImportedStyleTokensWithProjectInfo(site),
+      "projectId"
+    ),
+    cssVarResolver: new CssVarResolver(
+      allStyleTokens(site, { includeDeps: "all" }),
+      allMixins(site, { includeDeps: "all" }),
+      allImageAssets(site, { includeDeps: "all" }),
+      site.activeTheme
+    ),
+  };
+}
+
 export function exportReactPresentational(
   componentGenHelper: ComponentGenHelper,
   component: Component,
@@ -876,7 +908,7 @@ export function exportReactPresentational(
   s3ImageLinks: Record<string, string>,
   isPlasmicHosted: boolean,
   forceAllCsr: boolean,
-  appAuthProvider?: AppAuthProvider,
+  appAuthProvider: AppAuthProvider | undefined,
   opts: ExportOpts = {
     lang: "ts",
     relPathFromImplToManagedDir: ".",
@@ -900,7 +932,8 @@ export function exportReactPresentational(
     whitespaceNormal: false,
     useCustomFunctionsStub: false,
     targetEnv: "codegen",
-  }
+  },
+  siteCtx: SerializerSiteContext
 ): ComponentExportOutput {
   interpreterMeta = createInterpreterMeta();
   if (!opts.relPathFromImplToManagedDir) {
@@ -917,7 +950,8 @@ export function exportReactPresentational(
     );
   const nodeNamer = makeNodeNamer(component);
   const reactHookSpecs = deriveReactHookSpecs(component, nodeNamer);
-  const projectFlags = getProjectFlags(site);
+
+  const projectFlags = siteCtx.projectFlags;
   if (opts.isPlasmicTeamUser) {
     applyPlasmicUserDevFlagOverrides(projectFlags);
   }
@@ -979,6 +1013,7 @@ export function exportReactPresentational(
     nodeNamer,
     reactHookSpecs,
     site,
+    siteCtx,
     projectConfig,
     usedGlobalVariantGroups,
     variantComboChecker,
@@ -987,12 +1022,7 @@ export function exportReactPresentational(
     aliases: makeComponentAliases(referencedComponents, opts.platform),
     s3ImageLinks,
     projectFlags,
-    cssVarResolver: new CssVarResolver(
-      allStyleTokens(site, { includeDeps: "all" }),
-      allMixins(site, { includeDeps: "all" }),
-      allImageAssets(site, { includeDeps: "all" }),
-      site.activeTheme
-    ),
+    cssVarResolver: siteCtx.cssVarResolver,
     usesDataSourceInteraction: hasDataSourceInteractions(component),
     usesLoginInteraction:
       !!component.pageMeta?.roleId || hasLoginInteractions(component),
@@ -1140,7 +1170,12 @@ const __wrapUserPromise = globalThis.__PlasmicWrapUserPromise ?? (async (loc, pr
     }
     ${referencedImports.join("\n")}
     ${importGlobalVariantContexts}
-    ${makeStylesImports(site, component, projectConfig, ctx.exportOpts)}
+    ${makeStylesImports(
+      siteCtx.cssProjectDependencies,
+      component,
+      projectConfig,
+      ctx.exportOpts
+    )}
     ${iconImports}
     ${makePictureImports(site, component, ctx.exportOpts, "managed")}
     ${makeSuperCompImports(component, ctx.exportOpts)}
@@ -1295,6 +1330,16 @@ export function makeVariantComboChecker(
 
   const variantChecker = (variant: Variant) => {
     if (isStyleVariant(variant)) {
+      const tplRoot = component.tplTree;
+      if (isTplRootWithCodeComponentInteractionVariants(tplRoot)) {
+        return variant.selectors
+          .map((sel) => {
+            return `$ccInteractions[${jsString(
+              withoutInteractionVariantPrefix(sel)
+            )}]`;
+          })
+          .join(" && ");
+      }
       // One should only call variantChecker on style variants for non-css
       // variantSettings.
       const hook = ensure(
@@ -1711,7 +1756,7 @@ function renderFullViewportStyle(ctx: SerializerBaseContext): string {
 
 export function renderPage(
   ctx: SerializerBaseContext,
-  page: Component,
+  page: PageComponent,
   renderBody: string
 ): string {
   const sizeType = getPageComponentSizeType(page);
@@ -2043,6 +2088,9 @@ export function serializeComponentLocalVars(ctx: SerializerBaseContext) {
   const { component } = ctx;
 
   const treeTriggers = serializeLocalStyleTriggers(ctx);
+  const ccInteractionTriggers = serializeInteractionVariantsTriggers(
+    component.tplTree
+  );
   const globalTriggers = serializeGlobalVariantValues(
     ctx.usedGlobalVariantGroups
   );
@@ -2069,7 +2117,9 @@ export function serializeComponentLocalVars(ctx: SerializerBaseContext) {
         : ""
     }
 
-    const currentUser = useCurrentUser?.() || {};
+    ${
+      ctx.appAuthProvider ? `const currentUser = useCurrentUser?.() || {};` : ""
+    }
 
     ${
       ctx.usesComponentLevelQueries
@@ -2150,6 +2200,7 @@ export function serializeComponentLocalVars(ctx: SerializerBaseContext) {
 
     ${treeTriggers}
     ${globalTriggers}
+    ${ccInteractionTriggers}
   `;
 }
 
@@ -2171,6 +2222,30 @@ export function serializeLocalStyleTriggers(ctx: SerializerBaseContext) {
           .join(",\n")}
       };
       `;
+}
+
+export function serializeInteractionVariantsTriggers(tplRoot: TplNode) {
+  if (!isTplRootWithCodeComponentInteractionVariants(tplRoot)) {
+    return "";
+  }
+
+  const interactionVariantKeys = Object.keys(
+    tplRoot.component.codeComponentMeta.interactionVariantMeta
+  );
+
+  return `
+    const [$ccInteractions, setDollarCcInteractions] = React.useState<Record<string, boolean>>({
+      ${interactionVariantKeys.map((key) => `${key}: false`).join(",\n")}
+    });
+    const updateInteractionVariant = React.useCallback((changes: Record<string, boolean>) => {
+      setDollarCcInteractions((prev) => {
+        if (!Object.keys(changes).some((k) => prev[k] !== changes[k])) {
+          return prev;
+        }
+        return { ...prev, ...changes }
+      });
+    }, []);
+  `;
 }
 
 /**
@@ -2329,9 +2404,7 @@ const makeCssClassExprsForVariantedTokens = (ctx: SerializerBaseContext) => {
   const conditionalClassExprs: [string, string][] = [];
 
   const cssProjectDependencies = L.uniqBy(
-    allImportedStyleTokensWithProjectInfo(ctx.site).map((t) => ({
-      projectName: t.projectName,
-    })),
+    ctx.siteCtx.cssProjectDependencies,
     "projectName"
   );
 
@@ -2596,7 +2669,9 @@ export function getOrderedExplicitVSettings(
   const res = vsettings.filter(
     (vs) =>
       shouldGenVariantSetting(ctx, vs) &&
-      (!hasStyleVariant(vs.variants) || shouldGenReactHook(vs, ctx.component))
+      (!hasStyleVariant(vs.variants) ||
+        shouldGenReactHook(vs, ctx.component) ||
+        isTplRootWithCodeComponentInteractionVariants(ctx.component.tplTree))
   );
   if (interpreterMeta) {
     interpreterMeta.nodeUuidToOrderedVsettings[node.uuid] =
@@ -2795,10 +2870,17 @@ export function serializeTplTextBlockContent(
   };
 }
 
+export interface SerializerSiteContext {
+  projectFlags: DevFlagsType;
+  cssProjectDependencies: CssProjectDependencies;
+  cssVarResolver: CssVarResolver;
+}
+
 export interface SerializerBaseContext {
   componentGenHelper: ComponentGenHelper;
   nodeNamer: NodeNamer;
   site: Site;
+  siteCtx: SerializerSiteContext;
   component: Component;
   reactHookSpecs: ReactHookSpec[];
   projectConfig: ProjectConfig;
@@ -3089,7 +3171,9 @@ export function makeComponentAliases(
     const name = getImportedComponentName(new Map(), comp);
     if (usedNames.has(name)) {
       let count = 2;
-      while (usedNames.has(name + count)) count++;
+      while (usedNames.has(name + count)) {
+        count++;
+      }
       aliases.set(comp, name + count);
       usedNames.add(name + count);
     } else {
@@ -3507,6 +3591,7 @@ function serializeTplComponent(ctx: SerializerBaseContext, node: TplComponent) {
   const nodeName = nodeNamer(node);
   const { attrs, orderedCondStr, serializedChildren, triggeredHooks } =
     serializeTplComponentBase(ctx, node);
+  const isRoot = node === ctx.component.tplTree;
 
   const baseVs = node.vsettings.find((vs) => isBaseVariant(vs.variants));
   if (baseVs?.dataRep && !("key" in attrs)) {
@@ -3519,6 +3604,10 @@ function serializeTplComponent(ctx: SerializerBaseContext, node: TplComponent) {
     ] = `(ref) => { $refs[${jsLiteral(nodeName)}] = ref; }`;
   }
 
+  if (isRoot && isTplRootWithCodeComponentInteractionVariants(node)) {
+    attrs["updateInteractionVariant"] = `updateInteractionVariant`;
+  }
+
   let componentStr = makeCreatePlasmicElement(
     ctx,
     node,
@@ -3528,7 +3617,7 @@ function serializeTplComponent(ctx: SerializerBaseContext, node: TplComponent) {
     serializedChildren,
     undefined,
     triggeredHooks,
-    node === ctx.component.tplTree
+    isRoot
   );
 
   componentStr = serializeDataReps(ctx, node, componentStr);
@@ -3707,7 +3796,7 @@ export function serializeDataReps(
     return serializedContent;
   }
 
-  const elementName = toVarName(baseVs.dataRep.element.name);
+  const elementName = getRepetitionElementName(baseVs.dataRep);
   const indexName = getRepetitionIndexName(baseVs.dataRep);
 
   const idx = getNumberOfRepeatingAncestors(node) - 1;
@@ -3761,7 +3850,7 @@ function shouldWrapWithPageGuard(
     return false;
   }
   const roleId = component.pageMeta?.roleId;
-  return !!roleId || ctx.forceAllCsr;
+  return !!roleId;
 }
 
 function serializeWithPlasmicPageGuard(

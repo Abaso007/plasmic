@@ -1,21 +1,14 @@
-import {
-  Component,
-  ImageAsset,
-  Site,
-  TplNode,
-  Variant,
-  VariantGroup,
-} from "@/wab/classes";
-import { ensure, maybe } from "@/wab/common";
+import { ensure, maybe } from "@/wab/shared/common";
 import {
   getCodeComponentImportName,
   getSuperComponents,
   isCodeComponent,
   isPageComponent,
-} from "@/wab/components";
-import { DEVFLAGS } from "@/wab/devflags";
-import { ExprCtx } from "@/wab/exprs";
-import { ImageAssetType } from "@/wab/image-asset-type";
+} from "@/wab/shared/core/components";
+import { DEVFLAGS } from "@/wab/shared/devflags";
+import { ExprCtx } from "@/wab/shared/core/exprs";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
+import { VariantGroupType } from "@/wab/shared/Variants";
 import { CodeComponentWithHelpers } from "@/wab/shared/code-components/code-components";
 import {
   CodegenScheme,
@@ -35,9 +28,15 @@ import {
   makeGlobalVariantGroupContextName,
   makeGlobalVariantGroupFileName,
 } from "@/wab/shared/codegen/variants";
-import { VariantGroupType } from "@/wab/shared/Variants";
-import { allImportedStyleTokensWithProjectInfo } from "@/wab/sites";
-import { ASPECT_RATIO_SCALE_FACTOR } from "@/wab/tpls";
+import {
+  Component,
+  ImageAsset,
+  TplNode,
+  Variant,
+  VariantGroup,
+} from "@/wab/shared/model/classes";
+import { CssProjectDependencies } from "@/wab/shared/core/sites";
+import { ASPECT_RATIO_SCALE_FACTOR } from "@/wab/shared/core/tpls";
 import L, { last, lowerFirst } from "lodash";
 
 export const projectStyleCssImportName = "projectcss";
@@ -139,7 +138,7 @@ export const safeShortUuid = (shortUuid: string) => {
 export type NodeNamer = (node: TplNode) => string | undefined;
 
 export function makeStylesImports(
-  site: Site,
+  cssProjectDependencies: CssProjectDependencies,
   component: Component,
   projectConfig: ProjectConfig,
   opts: ExportOpts,
@@ -160,11 +159,6 @@ export function makeStylesImports(
     }`;
     return `import ${importName} "./${importPath}"`;
   };
-
-  const cssProjectDependencies = L.uniqBy(
-    allImportedStyleTokensWithProjectInfo(site),
-    "projectId"
-  );
 
   return `
     ${
@@ -355,24 +349,23 @@ export function makeGlobalGroupImports(
   globalGroups: VariantGroup[],
   opts: { idFileNames?: boolean } = {}
 ) {
-  return globalGroups
-    .map((vg) => {
-      const groupFileName = opts.idFileNames
-        ? makeGlobalVariantIdFileName(vg)
-        : makeGlobalVariantGroupFileName(vg);
-      if (vg.type === VariantGroupType.GlobalScreen) {
-        return `import {ScreenVariantProvider} from "./${stripExtension(
-          groupFileName
-        )}"; // plasmic-import: ${vg.uuid}/globalVariant`;
-      } else {
+  return (
+    globalGroups
+      // Filter out global screens, since they don't use a context provider
+      .filter((vg) => vg.type !== VariantGroupType.GlobalScreen)
+      .map((vg) => {
+        const groupFileName = opts.idFileNames
+          ? makeGlobalVariantIdFileName(vg)
+          : makeGlobalVariantGroupFileName(vg);
+
         return `import {${makeGlobalVariantGroupContextName(
           vg
         )}} from "./${stripExtension(groupFileName)}"; // plasmic-import: ${
           vg.uuid
         }/globalVariant`;
-      }
-    })
-    .join("\n");
+      })
+      .join("\n")
+  );
 }
 
 export function wrapGlobalProvider(

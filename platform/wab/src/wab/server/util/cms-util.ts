@@ -1,5 +1,5 @@
-import { Dict } from "@/wab/collections";
-import { assert, withoutNils } from "@/wab/common";
+import { Dict } from "@/wab/shared/collections";
+import { assert, withoutNils } from "@/wab/shared/common";
 import { CmsTable } from "@/wab/server/entities/Entities";
 import { BadRequestError } from "@/wab/shared/ApiErrors/errors";
 import {
@@ -57,9 +57,13 @@ export function normalizeCmsData(
         withoutNils(
           Object.entries(fieldMetaMap).map(([key, meta]) => {
             const field = data[key];
-            if (field === undefined) return undefined;
+            if (field === undefined) {
+              return undefined;
+            }
             // if the request has a field as null, erase it from all locales
-            if (field === null) return [key, null];
+            if (field === null) {
+              return [key, null];
+            }
             if (locale === "" && conformsToType(field, meta.type)) {
               return [key, field];
             }

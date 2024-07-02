@@ -3,7 +3,7 @@
 // TODO Debug why explicit type strings are nec for Column() / why reflect-metadata doesn't work
 // TODO Use real UUID type, both in PG and in Typescript.
 
-import { Dict } from "@/wab/collections";
+import { Dict } from "@/wab/shared/collections";
 import { getEncryptionKey } from "@/wab/server/secrets";
 import type { TutorialDbInfo } from "@/wab/server/tutorialdb/tutorialdb-utils";
 import { makeStableEncryptor } from "@/wab/server/util/crypt";
@@ -304,6 +304,9 @@ export class Project extends OrgChild<"ProjectId"> {
     | CodeSandboxInfo[]
     | null;
   @Column("boolean") readableByPublic: boolean;
+
+  @Column("jsonb", { nullable: true })
+  uiConfig: UiConfig | null;
 
   @ManyToOne((type) => Workspace)
   workspace: Workspace | null;

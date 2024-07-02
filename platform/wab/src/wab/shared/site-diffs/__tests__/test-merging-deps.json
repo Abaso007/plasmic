@@ -688,7 +688,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "65167010": {
             "type": { "__ref": "65167028" },
@@ -833,7 +836,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "65167018": {
             "name": "title",
@@ -1054,7 +1060,6 @@
             "uuid": "_he2-5jUN6",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "65167066" },
             "lang": "English",
             "pinnedVariants": {},
@@ -1091,7 +1096,7 @@
           "65167068": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "iFkoBAzyW77n4pChdSYgsG",
       "version": "0.0.1",
@@ -1784,7 +1789,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "60118010": {
             "type": { "__ref": "60118028" },
@@ -1929,7 +1937,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "60118018": {
             "name": "title",
@@ -2086,7 +2097,6 @@
             "uuid": "4-d-o6PTRc",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "60118056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -2189,7 +2199,6 @@
             "uuid": "yYF8zBr2AS",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "60118070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -2226,7 +2235,7 @@
           "60118072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "8uBwJD7SLePaoY9TKegvH7",
       "version": "1.0.0",
@@ -2919,7 +2928,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "57103010": {
             "type": { "__ref": "57103028" },
@@ -3064,7 +3076,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "57103018": {
             "name": "title",
@@ -3221,7 +3236,6 @@
             "uuid": "fLtn49XjTP",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "57103056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -3324,7 +3338,6 @@
             "uuid": "swGPnmdYXV",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "57103070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -3361,7 +3374,7 @@
           "57103072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "gZPuBeqjCafmbUY9RKnp61",
       "version": "1.0.0",
@@ -4054,7 +4067,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "48972010": {
             "type": { "__ref": "48972028" },
@@ -4199,7 +4215,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "48972018": {
             "name": "title",
@@ -4356,7 +4375,6 @@
             "uuid": "h5S0nNuAsh",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "48972056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -4459,7 +4477,6 @@
             "uuid": "Jp7nNR9SVw",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "48972070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -4496,7 +4513,7 @@
           "48972072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "7nMxxUmJrhy58kA9uBsL3V",
       "version": "0.0.1",
@@ -5180,7 +5197,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "30721010": {
             "type": { "__ref": "30721028" },
@@ -5325,7 +5345,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "30721018": {
             "name": "title",
@@ -5482,7 +5505,6 @@
             "uuid": "0Uzi1lqXCu",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "30721056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5585,7 +5607,6 @@
             "uuid": "rSQ80TTfGi",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "30721070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5631,7 +5652,7 @@
           }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "t44ZSh3EA7S5G9S9EMW7Vj",
       "version": "0.0.1",
@@ -6324,7 +6345,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "19793010": {
             "type": { "__ref": "19793028" },
@@ -6469,7 +6493,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "19793018": {
             "name": "title",
@@ -6626,7 +6653,6 @@
             "uuid": "riWhALXjue",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "19793056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -6729,7 +6755,6 @@
             "uuid": "pcebZD8MX9",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "19793070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -6766,7 +6791,7 @@
           "19793072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "sRBc4tTdChZrFDkXW74Z36",
       "version": "0.0.1",
@@ -7459,7 +7484,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "52870010": {
             "type": { "__ref": "52870028" },
@@ -7604,7 +7632,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "52870018": {
             "name": "title",
@@ -7761,7 +7792,6 @@
             "uuid": "15ePmL0Km-",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "52870056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -7864,7 +7894,6 @@
             "uuid": "PaP73tfDsX",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "52870070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -7901,7 +7930,7 @@
           "52870072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "9sEbK61REdmFqh53jTLG7F",
       "version": "1.0.0",
@@ -8594,7 +8623,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "57103010": {
             "type": { "__ref": "57103028" },
@@ -8739,7 +8771,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "57103018": {
             "name": "title",
@@ -8896,7 +8931,6 @@
             "uuid": "fLtn49XjTP",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "57103056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -8999,7 +9033,6 @@
             "uuid": "swGPnmdYXV",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "57103070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -9036,7 +9069,7 @@
           "57103072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "gZPuBeqjCafmbUY9RKnp61",
       "version": "2.0.0",
@@ -9729,7 +9762,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "30721010": {
             "type": { "__ref": "30721028" },
@@ -9874,7 +9910,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "30721018": {
             "name": "title",
@@ -10031,7 +10070,6 @@
             "uuid": "0Uzi1lqXCu",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "30721056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -10134,7 +10172,6 @@
             "uuid": "rSQ80TTfGi",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "30721070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -10171,7 +10208,7 @@
           "30721072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "t44ZSh3EA7S5G9S9EMW7Vj",
       "version": "1.0.0",
@@ -10864,7 +10901,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "52870010": {
             "type": { "__ref": "52870028" },
@@ -11009,7 +11049,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "52870018": {
             "name": "title",
@@ -11166,7 +11209,6 @@
             "uuid": "15ePmL0Km-",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "52870056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11269,7 +11311,6 @@
             "uuid": "PaP73tfDsX",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "52870070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11306,7 +11347,7 @@
           "52870072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "9sEbK61REdmFqh53jTLG7F",
       "version": "0.0.1",
@@ -11999,7 +12040,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "60118010": {
             "type": { "__ref": "60118028" },
@@ -12144,7 +12188,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "60118018": {
             "name": "title",
@@ -12301,7 +12348,6 @@
             "uuid": "4-d-o6PTRc",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "60118056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -12404,7 +12450,6 @@
             "uuid": "yYF8zBr2AS",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "60118070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -12441,7 +12486,7 @@
           "60118072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "8uBwJD7SLePaoY9TKegvH7",
       "version": "0.0.1",
@@ -13134,7 +13179,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "57103010": {
             "type": { "__ref": "57103028" },
@@ -13279,7 +13327,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "57103018": {
             "name": "title",
@@ -13436,7 +13487,6 @@
             "uuid": "fLtn49XjTP",
             "width": 800,
             "height": 500,
-            "viewportHeight": null,
             "container": { "__ref": "57103056" },
             "lang": "English",
             "pinnedVariants": {},
@@ -13539,7 +13589,6 @@
             "uuid": "swGPnmdYXV",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "57103070" },
             "lang": "English",
             "pinnedVariants": {},
@@ -13576,7 +13625,7 @@
           "57103072": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "gZPuBeqjCafmbUY9RKnp61",
       "version": "0.0.1",
@@ -13768,7 +13817,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "11533010": {
             "type": { "__ref": "11533028" },
@@ -13913,7 +13965,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "11533018": {
             "name": "title",
@@ -14064,7 +14119,6 @@
             "uuid": "nEeKIPUO08",
             "width": 670,
             "height": 1610,
-            "viewportHeight": null,
             "container": { "__ref": "11533053" },
             "lang": "English",
             "pinnedVariants": {},
@@ -14293,7 +14347,6 @@
             "uuid": "s5XIUG78IK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "11533104" },
             "lang": "English",
             "pinnedVariants": {},
@@ -16309,7 +16362,7 @@
           "cafdd9be-624e-4326-92e5-224cc666283e",
           "af93112b-f516-4d48-8745-933a31e1ca43"
         ],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "rmvEdSfG1oBCrHP8owTn99",
       "version": "0.0.1",
@@ -16514,7 +16567,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "11533010": {
             "type": { "__ref": "11533028" },
@@ -16659,7 +16715,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "11533018": {
             "name": "title",
@@ -16810,7 +16869,6 @@
             "uuid": "nEeKIPUO08",
             "width": 670,
             "height": 1610,
-            "viewportHeight": null,
             "container": { "__ref": "11533053" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17039,7 +17097,6 @@
             "uuid": "s5XIUG78IK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "11533104" },
             "lang": "English",
             "pinnedVariants": {},
@@ -18639,7 +18696,6 @@
             "uuid": "KSgJIJA98p",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "26569023" },
             "lang": "English",
             "pinnedVariants": {},
@@ -18772,7 +18828,6 @@
             "uuid": "CdAc91UJEs",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "26569043" },
             "lang": "English",
             "pinnedVariants": {},
@@ -19405,7 +19460,7 @@
           "1a85d0b6-fa09-44c9-a29e-f9c8124b9eb5",
           "12cf73ec-46a8-4453-a8ba-25b075787a6f"
         ],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       }
     },
     {
@@ -19594,7 +19649,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "11533010": {
             "type": { "__ref": "11533028" },
@@ -19739,7 +19797,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "11533018": {
             "name": "title",
@@ -19890,7 +19951,6 @@
             "uuid": "nEeKIPUO08",
             "width": 670,
             "height": 1610,
-            "viewportHeight": null,
             "container": { "__ref": "11533053" },
             "lang": "English",
             "pinnedVariants": {},
@@ -20119,7 +20179,6 @@
             "uuid": "s5XIUG78IK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "11533104" },
             "lang": "English",
             "pinnedVariants": {},
@@ -22260,7 +22319,7 @@
           "1a85d0b6-fa09-44c9-a29e-f9c8124b9eb5",
           "e770f432-52ad-4ed7-be37-c0a50b0532be"
         ],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       }
     }
   ]

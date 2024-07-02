@@ -2,13 +2,13 @@
 // place.  We use it to type the API and to ensure the voluntarily ensure server
 // responses conform.
 
-import { Dict } from "@/wab/collections";
+import { Dict } from "@/wab/shared/collections";
 import { TokenType } from "@/wab/commons/StyleToken";
 import {
   DEVFLAGS,
   InsertableTemplateComponentResolution,
   InsertableTemplateTokenResolution,
-} from "@/wab/devflags";
+} from "@/wab/shared/devflags";
 import { Bundle } from "@/wab/shared/bundles";
 import { DataSourceType } from "@/wab/shared/data-sources-meta/data-source-registry";
 import {
@@ -500,6 +500,19 @@ export interface ApiProject extends ApiEntityBase {
   isUserStarter?: boolean;
 }
 
+export interface ApiProjectMeta
+  extends Pick<
+    ApiProject,
+    "id" | "name" | "workspaceId" | "hostUrl" | "uiConfig"
+  > {
+  lastPublishedVersion?: string;
+  publishedVersions: (Pick<
+    PkgVersionInfo,
+    "version" | "description" | "tags"
+  > & { createdAt: string; createdBy?: string })[];
+  branches: Pick<ApiBranch, "id" | "name" | "hostUrl" | "status">[];
+}
+
 export interface ApiWhiteLabelUser {
   id: string; // Plasmic user id
   firstName: string;
@@ -942,6 +955,10 @@ export interface SetSiteInfoReq
   > {
   regenerateSecretApiToken?: boolean;
 }
+
+export type UpdateProjectMetaRequest = Partial<
+  Pick<ApiProject, "name" | "hostUrl" | "workspaceId" | "uiConfig">
+>;
 
 export type GitSyncAction = "commit" | "pr" | "build";
 export type GitSyncScheme = "codegen" | "loader";
@@ -1511,6 +1528,7 @@ export interface CommentLocation {
 
 export type CommentThreadId = Opaque<string, "CommentThreadId">;
 
+// Comment data is already branch specific
 export interface CommentData {
   location: CommentLocation;
   body: string;

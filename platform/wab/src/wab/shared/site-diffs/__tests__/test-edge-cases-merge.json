@@ -261,7 +261,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897022": {
             "uuid": "kd3zVeJf4r_",
@@ -513,7 +516,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897050": {
             "uuid": "gWxyex68plF",
@@ -1364,7 +1370,10 @@
             "styleSections": null,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897170": {
             "variants": [{ "__ref": "53897054" }],
@@ -4940,7 +4949,6 @@
             "uuid": "YzxTzp52bh3",
             "width": 913,
             "height": 2747,
-            "viewportHeight": null,
             "container": { "__ref": "53897803" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5009,7 +5017,6 @@
             "uuid": "ZWj1lhbdPdD",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897812" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5073,7 +5080,6 @@
             "uuid": "d6Q8Mu7eqIK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897822" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5137,7 +5143,6 @@
             "uuid": "pqj1su83Mq_",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897832" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5201,7 +5206,6 @@
             "uuid": "cYRb5flqsJK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897842" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5265,7 +5269,6 @@
             "uuid": "4aBKgSdvp54",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897852" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5329,7 +5332,6 @@
             "uuid": "JCWanQDRNru",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897862" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5393,7 +5395,6 @@
             "uuid": "YNurT3lBufm",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897872" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5457,7 +5458,6 @@
             "uuid": "xQML0Qe4w2F",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897882" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5521,7 +5521,6 @@
             "uuid": "d1mVGUKV4iW",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897892" },
             "lang": "English",
             "pinnedVariants": {},
@@ -5585,7 +5584,6 @@
             "uuid": "FxJFUFqw7bN",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897902" },
             "lang": "English",
             "pinnedVariants": {},
@@ -6118,7 +6116,7 @@
           "53898074": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "5txi3zd6hPLtbkzbV8p6jB",
       "version": "0.0.1",
@@ -6568,7 +6566,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897022": {
             "uuid": "kd3zVeJf4r_",
@@ -6820,7 +6821,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897050": {
             "uuid": "gWxyex68plF",
@@ -7636,7 +7640,10 @@
             "styleSections": null,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897170": {
             "variants": [{ "__ref": "53897054" }],
@@ -11003,7 +11010,6 @@
             "uuid": "YzxTzp52bh3",
             "width": 913,
             "height": 2747,
-            "viewportHeight": null,
             "container": { "__ref": "53897803" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11072,7 +11078,6 @@
             "uuid": "ZWj1lhbdPdD",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897812" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11136,7 +11141,6 @@
             "uuid": "d6Q8Mu7eqIK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897822" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11200,7 +11204,6 @@
             "uuid": "pqj1su83Mq_",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897832" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11264,7 +11267,6 @@
             "uuid": "cYRb5flqsJK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897842" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11328,7 +11330,6 @@
             "uuid": "4aBKgSdvp54",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897852" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11392,7 +11393,6 @@
             "uuid": "JCWanQDRNru",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897862" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11456,7 +11456,6 @@
             "uuid": "YNurT3lBufm",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897872" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11520,7 +11519,6 @@
             "uuid": "xQML0Qe4w2F",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897882" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11584,7 +11582,6 @@
             "uuid": "d1mVGUKV4iW",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897892" },
             "lang": "English",
             "pinnedVariants": {},
@@ -11648,7 +11645,6 @@
             "uuid": "FxJFUFqw7bN",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897902" },
             "lang": "English",
             "pinnedVariants": {},
@@ -12207,7 +12203,6 @@
             "uuid": "f3RrSQpDjO",
             "width": 913,
             "height": 2747,
-            "viewportHeight": null,
             "container": { "__ref": "63532005" },
             "lang": "English",
             "pinnedVariants": {},
@@ -12300,7 +12295,7 @@
           "63532015": { "values": {}, "mixins": [], "__type": "RuleSet" }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       }
     },
     {
@@ -12554,7 +12549,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897022": {
             "uuid": "kd3zVeJf4r_",
@@ -12806,7 +12804,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897050": {
             "uuid": "gWxyex68plF",
@@ -13631,7 +13632,10 @@
             "styleSections": null,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "53897170": {
             "variants": [{ "__ref": "53897054" }],
@@ -17176,7 +17180,6 @@
             "uuid": "YzxTzp52bh3",
             "width": 913,
             "height": 2747,
-            "viewportHeight": null,
             "container": { "__ref": "53897803" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17245,7 +17248,6 @@
             "uuid": "ZWj1lhbdPdD",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897812" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17309,7 +17311,6 @@
             "uuid": "d6Q8Mu7eqIK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897822" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17373,7 +17374,6 @@
             "uuid": "pqj1su83Mq_",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897832" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17437,7 +17437,6 @@
             "uuid": "cYRb5flqsJK",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897842" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17501,7 +17500,6 @@
             "uuid": "4aBKgSdvp54",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897852" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17565,7 +17563,6 @@
             "uuid": "JCWanQDRNru",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897862" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17629,7 +17626,6 @@
             "uuid": "YNurT3lBufm",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897872" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17693,7 +17689,6 @@
             "uuid": "xQML0Qe4w2F",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897882" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17757,7 +17752,6 @@
             "uuid": "d1mVGUKV4iW",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897892" },
             "lang": "English",
             "pinnedVariants": {},
@@ -17821,7 +17815,6 @@
             "uuid": "FxJFUFqw7bN",
             "width": 340,
             "height": 340,
-            "viewportHeight": null,
             "container": { "__ref": "53897902" },
             "lang": "English",
             "pinnedVariants": {},
@@ -18567,7 +18560,7 @@
           }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       }
     }
   ]

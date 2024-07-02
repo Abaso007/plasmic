@@ -1,11 +1,4 @@
 import {
-  Component,
-  ImageAsset,
-  isKnownPropParam,
-  Site,
-  VariantGroup,
-} from "@/wab/classes";
-import {
   absorbLinkClick,
   showCanvasAuthNotification,
 } from "@/wab/client/components/canvas/studio-canvas-util";
@@ -17,7 +10,7 @@ import {
 import { scriptExec } from "@/wab/client/dom-utils";
 import { requestIdleCallback } from "@/wab/client/requestidlecallback";
 import { StudioAppUser, StudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
-import { ensure, mkUuid, spawn } from "@/wab/common";
+import { ensure, mkUuid, spawn } from "@/wab/shared/common";
 import { safeCallbackify } from "@/wab/commons/control";
 import {
   CodeComponent,
@@ -25,9 +18,9 @@ import {
   getCodeComponentImportName,
   isCodeComponent,
   isPageComponent,
-} from "@/wab/components";
-import { DEVFLAGS } from "@/wab/devflags";
-import { ExprCtx, getRawCode } from "@/wab/exprs";
+} from "@/wab/shared/core/components";
+import { DEVFLAGS } from "@/wab/shared/devflags";
+import { ExprCtx, getRawCode } from "@/wab/shared/core/exprs";
 import {
   allCodeLibraries,
   allCustomFunctions,
@@ -48,6 +41,7 @@ import {
 } from "@/wab/shared/codegen/image-assets";
 import {
   codeLibraryImportAlias,
+  computeSerializerSiteContext,
   customFunctionImportAlias,
   exportProjectConfig,
   exportReactPresentational,
@@ -68,17 +62,24 @@ import {
 } from "@/wab/shared/codegen/types";
 import { jsLiteral, toVarName } from "@/wab/shared/codegen/util";
 import { exportGlobalVariantGroup } from "@/wab/shared/codegen/variants";
+import {
+  Component,
+  ImageAsset,
+  isKnownPropParam,
+  Site,
+  VariantGroup,
+} from "@/wab/shared/model/classes";
 import { SiteInfo } from "@/wab/shared/SharedApi";
 import { getSlotParams } from "@/wab/shared/SlotUtils";
 import { isScreenVariantGroup, VariantCombo } from "@/wab/shared/Variants";
-import { allGlobalVariantGroups } from "@/wab/sites";
-import { CssVarResolver } from "@/wab/styles";
+import { allGlobalVariantGroups } from "@/wab/shared/core/sites";
+import { CssVarResolver } from "@/wab/shared/core/styles";
 import * as Sentry from "@sentry/browser";
 import * as asynclib from "async";
 import L from "lodash";
 import { autorun, comparer, untracked } from "mobx";
 import { computedFn } from "mobx-utils";
-import { getPlumeEditorPlugin } from "src/wab/shared/plume/plume-registry";
+import { getPlumeEditorPlugin } from "@/wab/shared/plume/plume-registry";
 
 export interface CodeModule {
   name?: string;
@@ -380,6 +381,10 @@ export function createCodeComponentHelperModule(
   };
 }
 
+function codeComponentNotFoundMessage(name: string) {
+  return `[host-app-error] Code component '${name}' was not found in the current host app.`;
+}
+
 export function createCodeComponentModule(
   component: CodeComponent,
   opts?: { idFileNames?: boolean }
@@ -396,13 +401,25 @@ export function createCodeComponentModule(
         return (<div {...filteredProps}>{slotNames.map((name) => props[name]).filter((v) => v != null)}</div>);
       }`;
     } else {
-      return `([...(window as any).__PlasmicComponentRegistry, ...((window as any).__PlasmicContextRegistry ?? []), ...((window as any).__PlasmicBuiltinRegistry ?? [])]).find(
-        ({meta}) => meta.name === ${jsLiteral(component.name)}
-      ).component`;
+      return `ensure(
+        ([
+          ...(window as any).__PlasmicComponentRegistry,
+          ...((window as any).__PlasmicContextRegistry ?? []),
+          ...((window as any).__PlasmicBuiltinRegistry ?? [])
+        ]).find(
+          ({meta}) => meta.name === ${jsLiteral(component.name)}
+        )
+      , "${codeComponentNotFoundMessage(component.name)}").component`;
     }
   };
   const source = `
   ${DEVFLAGS.ccStubs ? `import React from "react";` : ""}
+  const ensure = (x: any, msg: string) => {
+    if (x === undefined || x === null) {
+      throw new Error(msg);
+    }
+    return x;
+  };
   ${
     component.codeComponentMeta.defaultExport ? "" : "export "
   }const ${importName} = ${mkImpl()};
@@ -652,9 +669,19 @@ export function updateModules(doc: Document, modules: CodeModule[]) {
       }, "*");
     }).catch(err => {
       console.log("oops, error refreshing", err);
-      window.__Sub.setPlasmicRootNode(
-        window.__Sub.React.createElement("div", {}, \`Failed to load the preview - please refresh the browser to try again. \n\nIf the problem persits, please report a bug to Plasmic team. Thank you!\n\n\${err}\`)
-      );
+
+      const setErrorMessage = (msg) => {
+        window.__Sub.setPlasmicRootNode(
+          window.__Sub.React.createElement("div", {}, msg)
+        );
+      };
+
+      if (err.message.startsWith("[host-app-error]")) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage(\`Failed to load the preview - please refresh the browser to try again. \n\nIf the problem persits, please report a bug to Plasmic team. Thank you!\n\n\${err}\`);
+      }
+
       window.postMessage({
         source: "plasmic-live",
         type: "error",
@@ -839,7 +866,8 @@ export const createComponentOutput = computedFn(
       false,
       false,
       studioCtx.siteInfo.appAuthProvider,
-      exportOpts
+      exportOpts,
+      computeSerializerSiteContext(studioCtx.site)
     );
   },
   { name: "createComponentMods", keepAlive: true, equals: comparer.structural }

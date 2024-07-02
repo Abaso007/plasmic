@@ -523,7 +523,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "4f5QJDTElPWj": {
             "type": { "__ref": "19-KO5WSIn9u" },
@@ -668,7 +671,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "8cyCagXbmfTU": { "name": "text", "__type": "Text" },
           "o5emTqYfAe8x": {
@@ -819,7 +825,6 @@
             "uuid": "bu3dBcyE0srJ",
             "width": 800,
             "height": 800,
-            "viewportHeight": null,
             "container": { "__ref": "Wb1MBtMfn2uj" },
             "lang": "English",
             "pinnedVariants": {},
@@ -1017,7 +1022,7 @@
           }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       },
       "projectId": "aH1hFXMTo8YybdGp5ScZNk",
       "version": "0.0.1",
@@ -1558,7 +1563,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "4f5QJDTElPWj": {
             "type": { "__ref": "19-KO5WSIn9u" },
@@ -1703,7 +1711,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "8cyCagXbmfTU": { "name": "text", "__type": "Text" },
           "o5emTqYfAe8x": {
@@ -1854,7 +1865,6 @@
             "uuid": "bu3dBcyE0srJ",
             "width": 800,
             "height": 800,
-            "viewportHeight": null,
             "container": { "__ref": "Wb1MBtMfn2uj" },
             "lang": "English",
             "pinnedVariants": {},
@@ -2039,7 +2049,7 @@
           }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       }
     },
     {
@@ -2564,7 +2574,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "4f5QJDTElPWj": {
             "type": { "__ref": "19-KO5WSIn9u" },
@@ -2709,7 +2722,10 @@
             "styleSections": false,
             "helpers": null,
             "defaultSlotContents": {},
-            "__type": "CodeComponentMeta"
+            "__type": "CodeComponentMeta",
+            "thumbnailUrl": null,
+            "section": null,
+            "interactionVariantMeta": {}
           },
           "8cyCagXbmfTU": { "name": "text", "__type": "Text" },
           "o5emTqYfAe8x": {
@@ -2860,7 +2876,6 @@
             "uuid": "bu3dBcyE0srJ",
             "width": 800,
             "height": 800,
-            "viewportHeight": null,
             "container": { "__ref": "Wb1MBtMfn2uj" },
             "lang": "English",
             "pinnedVariants": {},
@@ -3049,7 +3064,7 @@
           }
         },
         "deps": [],
-        "version": "229-add-class-type-default-styles"
+        "version": "232-remove-viewport-height"
       }
     }
   ]

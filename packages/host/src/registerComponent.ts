@@ -192,6 +192,15 @@ export interface CodeComponentMeta<P> {
    */
   description?: string;
   /**
+   * A specific section to which the component should be displayed in Studio. By default, the component will be displayed in the "Custom Components" section.
+   * A new section will be created to display the components with the same `section` value.
+   */
+  section?: string;
+  /**
+   * A link to an image that will be displayed as a thumbnail of the component in the Studio, if the component has a `section` specified.
+   */
+  thumbnailUrl?: string;
+  /**
    * The javascript name to be used when generating code. Optional: if not
    * provided, `meta.name` is used.
    */
@@ -284,6 +293,15 @@ export interface CodeComponentMeta<P> {
   }[];
 
   /**
+   * If specified, then Figma components will have their properties transformed
+   * before being applied to this component. This is useful for transforming Figma
+   * properties to the format expected by the component.
+   */
+  figmaPropsTransform?: (
+    props: Record<string, string | number | boolean>
+  ) => Record<string, string | number | boolean>;
+
+  /**
    * If true, when an instance of this component is added, the element
    * will always be named by the name of this component.
    */
@@ -323,6 +341,18 @@ export interface CodeComponentMeta<P> {
    * slot. Clicking again will deep-select the slot content.
    */
   trapsFocus?: boolean;
+
+  /**
+   * An object describing the component interaction variants that should be allowed in Studio, when the component is
+   * used as the root of a Studio component.
+   */
+  interactionVariants?: Record<
+    string,
+    {
+      cssSelector: string;
+      displayName: string;
+    }
+  >;
 }
 
 export type CodeComponentMode =

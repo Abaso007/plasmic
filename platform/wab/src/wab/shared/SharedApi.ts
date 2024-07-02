@@ -1,11 +1,10 @@
-import { modelSchemaHash } from "@/wab/classes-metas";
-import { Dict } from "@/wab/collections";
+import { Dict } from "@/wab/shared/collections";
 import {
   assert,
   ensureType,
   NotImplementedError,
   omitNils,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import { toOpaque } from "@/wab/commons/types";
 import { AuthError } from "@/wab/shared/ApiErrors/errors";
 import {
@@ -37,11 +36,13 @@ import {
   ApiDirectoryEndUserGroup,
   ApiEndUser,
   ApiEndUserDirectory,
+  ApiEntityBase,
   ApiExecuteDataSourceStudioOpRequest,
   ApiFeatureTier,
   ApiNotificationSettings,
   ApiPermission,
   ApiProject,
+  ApiProjectMeta,
   ApiProjectRepository,
   ApiProjectRevision,
   ApiProjectWebhook,
@@ -176,12 +177,12 @@ import {
   UpdateHostUrlResponse,
   UpdateNotificationSettingsRequest,
   UpdatePasswordResponse,
+  UpdateProjectMetaRequest,
   UpdateProjectResponse,
   UpdateSelfAdminModeRequest,
   UpdateSelfRequest,
   UpdateTeamRequest,
   UpdateWorkspaceRequest,
-  UserId,
   UsersResponse,
   WorkspaceId,
 } from "@/wab/shared/ApiSchema";
@@ -191,6 +192,7 @@ import { OperationTemplate } from "@/wab/shared/data-sources-meta/data-sources";
 import { CodeSandboxInfo } from "@/wab/shared/db-json-blobs";
 import { GrantableAccessLevel } from "@/wab/shared/EntUtil";
 import { LowerHttpMethod } from "@/wab/shared/HttpClientUtil";
+import { modelSchemaHash } from "@/wab/shared/model/classes-metas";
 import { UiConfig } from "@/wab/shared/ui-config-utils";
 import { executePlasmicDataOp } from "@plasmicapp/data-sources";
 import L, { pick, uniq } from "lodash";
@@ -252,14 +254,8 @@ export interface PkgInfo {
   projectId;
 }
 
-export interface PkgVersionInfoMeta {
+export interface PkgVersionInfoMeta extends ApiEntityBase {
   id: string;
-  createdAt: string | Date;
-  createdById: UserId | null;
-  updatedAt: string | Date;
-  updatedById: UserId | null;
-  deletedAt: string | Date | null;
-  deletedById: string | null;
   pkgId: string;
   version: string;
   tags?: string[];
@@ -277,6 +273,7 @@ export interface PkgVersionInfoMeta {
 export type PkgVersionInfo = PkgVersionInfoMeta & {
   model: Bundle;
 };
+
 export type WrappedStorageEvent = Pick<StorageEvent, "key" | "newValue">;
 
 export abstract class SharedApi {
@@ -537,6 +534,13 @@ export abstract class SharedApi {
     return this.put(`/projects/${siteId}`, data);
   }
 
+  updateProjectMeta(
+    projectId: string,
+    data: UpdateProjectMetaRequest
+  ): Promise<ApiProjectMeta> {
+    return this.put(`/projects/${projectId}/meta`, data);
+  }
+
   setShowHostingBadge(projectId: ProjectId, showBadge: boolean) {
     return this.put(`/projects/${projectId}/hosting/badge`, { showBadge });
   }
@@ -676,6 +680,13 @@ export abstract class SharedApi {
 
   createPkgByProjectId(projectId: string): Promise<{ pkg: PkgInfo }> {
     return this.post(`/projects/${projectId}/create-pkg`);
+  }
+
+  getPkgVersionByProjectId(
+    projectId: string,
+    version
+  ): Promise<{ pkg: PkgVersionInfo; depPkgs: PkgVersionInfo[] }> {
+    return this.get(`/pkgs/projectId/${projectId}`, { version });
   }
 
   /**
@@ -1297,10 +1308,6 @@ export abstract class SharedApi {
     stripeSubscriptionId: StripeSubscriptionId;
   }): Promise<{}> {
     return this.post("/admin/upgrade-team", args);
-  }
-
-  async updateCodeSandboxToken(token: string) {
-    return this.post("/admin/codesandbox-token", { token });
   }
 
   async getAppConfig(): Promise<AppConfigResponse> {

@@ -5606,12 +5606,6 @@ $size-controls-width: $spacing-control-width - 2 * ($spacing-control-x-thickness
   white-space: nowrap
   overflow: hidden
 
-.preset-screenshot
-  width: 100%
-  height: 100%
-  object-fit: contain
-  pointer-events: none
-
 .left-pane-resizer
   position: absolute
   right: -7px
@@ -5712,6 +5706,11 @@ a, button.link-like
 .NoPaddingPopover
   .ant-popover-inner-content
     padding: 0
+
+.NoBackgroundStyles
+  .ant-popover-inner
+    box-shadow: none
+    background: none
 
 .NewBadge
   padding: 4px 8px

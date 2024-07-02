@@ -1,25 +1,24 @@
-import { ProjectDependency } from "@/wab/classes";
 import * as Api from "@/wab/client/api";
 import { AppCtx, hideStarters } from "@/wab/client/app-ctx";
 import {
+  UU,
   getEmaiLVerificationRouteWithContinuation,
   getLoginRouteWithContinuation,
   parseProjectLocation,
-  UU,
 } from "@/wab/client/cli-routes";
-import { PublicLink } from "@/wab/client/components/PublicLink";
 import * as DbMod from "@/wab/client/db";
-import { asyncNever, spawn } from "@/wab/common";
-import { getProjectFlags } from "@/wab/devflags";
-import * as exprs from "@/wab/exprs";
+import { asyncNever, spawn } from "@/wab/shared/common";
+import { getProjectFlags } from "@/wab/shared/devflags";
+import * as exprs from "@/wab/shared/core/exprs";
 import { ApiBranch, MainBranchId, ProjectId } from "@/wab/shared/ApiSchema";
-import { getBundle } from "@/wab/shared/bundles";
-import { instUtil } from "@/wab/shared/core/InstUtil";
 import { SiteInfo } from "@/wab/shared/SharedApi";
 import { $$$ } from "@/wab/shared/TplQuery";
+import { getBundle } from "@/wab/shared/bundles";
+import { instUtil } from "@/wab/shared/model/InstUtil";
+import { ProjectDependency } from "@/wab/shared/model/classes";
 import { fixPageHrefsToLocal } from "@/wab/shared/utils/split-site-utils";
-import { unbundleSite } from "@/wab/tagged-unbundle";
-import * as tpls from "@/wab/tpls";
+import { unbundleSite } from "@/wab/shared/core/tagged-unbundle";
+import * as tpls from "@/wab/shared/core/tpls";
 import { notification } from "antd";
 import * as React from "react";
 
@@ -143,14 +142,14 @@ export async function checkDepPkgHosts(
           <p>
             This project is hosted by {siteInfo.hostUrl ?? "Plasmic"}, but it
             imports components from{" "}
-            <PublicLink
+            <a
               target="_blank"
               href={UU.project.fill({
                 projectId: pkgVersion.pkg.pkg?.projectId,
               })}
             >
               {pkgVersion.pkg.pkg?.name}
-            </PublicLink>
+            </a>
             , which is hosted by {pkgVersion.pkg.hostUrl}. <br />
             Notice this can prevent the canvas from rendering components
             correctly.

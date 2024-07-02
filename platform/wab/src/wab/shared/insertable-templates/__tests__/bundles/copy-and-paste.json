@@ -274,7 +274,10 @@
           "styleSections": false,
           "helpers": null,
           "defaultSlotContents": {},
-          "__type": "CodeComponentMeta"
+          "__type": "CodeComponentMeta",
+          "thumbnailUrl": null,
+          "section": null,
+          "interactionVariantMeta": {}
         },
         "MNPxg3RpWkPG": {
           "uuid": "ZLEARI2Ib_Lz",
@@ -529,7 +532,10 @@
           "styleSections": false,
           "helpers": null,
           "defaultSlotContents": {},
-          "__type": "CodeComponentMeta"
+          "__type": "CodeComponentMeta",
+          "thumbnailUrl": null,
+          "section": null,
+          "interactionVariantMeta": {}
         },
         "g1Ae5397e-Hh": {
           "uuid": "5DOwG81twq46",
@@ -1061,7 +1067,6 @@
           "uuid": "jqdYDVmnu9Of",
           "width": 1440,
           "height": 768,
-          "viewportHeight": 1024,
           "container": { "__ref": "1VWtCCuc2Pn4" },
           "lang": "English",
           "pinnedVariants": {},
@@ -1105,7 +1110,6 @@
           "uuid": "evYVEKrFq5uK",
           "width": 414,
           "height": 736,
-          "viewportHeight": 736,
           "container": { "__ref": "R2A6315TrqPd" },
           "lang": "English",
           "pinnedVariants": {},
@@ -1748,7 +1752,6 @@
           "uuid": "wznggKZf_kdd",
           "width": 1180,
           "height": 540,
-          "viewportHeight": null,
           "container": { "__ref": "_6pNyV-FY490" },
           "lang": "English",
           "pinnedVariants": {},
@@ -2485,7 +2488,6 @@
           "uuid": "7UYHP4r3w9Ru",
           "width": 1180,
           "height": 540,
-          "viewportHeight": null,
           "container": { "__ref": "uI8CQs93xaJW" },
           "lang": "English",
           "pinnedVariants": {},
@@ -3041,7 +3043,6 @@
           "uuid": "zWj_C3Sv8Orm",
           "width": 1180,
           "height": 540,
-          "viewportHeight": null,
           "container": { "__ref": "namF_pgw574r" },
           "lang": "English",
           "pinnedVariants": {},
@@ -4049,7 +4050,7 @@
         }
       },
       "deps": [],
-      "version": "229-add-class-type-default-styles"
+      "version": "232-remove-viewport-height"
     }
   ]
 ]

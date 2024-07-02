@@ -108,6 +108,7 @@ interface ApiLoaderBundleOutput {
   activeSplits: Split[];
   bundleKey: string | null;
   deferChunksByDefault: boolean;
+  disableRootLoadingBoundaryByDefault: boolean;
 }
 
 export interface LoaderBundleOutput extends ApiLoaderBundleOutput {
@@ -141,12 +142,12 @@ export const isBrowser =
   window != null &&
   typeof window.document !== "undefined";
 
-function transformApiLoaderBundleOutput(
+export function transformApiLoaderBundleOutput(
   bundle: ApiLoaderBundleOutput
 ): LoaderBundleOutput {
   return {
     ...bundle,
-    filteredIds: {},
+    filteredIds: Object.fromEntries(bundle.projects.map((p) => [p.id, []])),
   };
 }
 

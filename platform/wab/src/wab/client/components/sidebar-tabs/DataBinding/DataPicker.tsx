@@ -1,4 +1,3 @@
-import { Interaction } from "@/wab/classes";
 import {
   checkDisallowedUseOfLibs,
   checkStrSizeLimit,
@@ -31,14 +30,15 @@ import {
 } from "@/wab/client/plasmic/plasmic_kit_data_binding/PlasmicDataPicker";
 import { PlasmicDataPickerColumnItem__VariantMembers } from "@/wab/client/plasmic/plasmic_kit_data_binding/PlasmicDataPickerColumnItem";
 import { StandardMarkdown } from "@/wab/client/utils/StandardMarkdown";
-import { arrayEq, ensure, isPrefixArray, sortBy } from "@/wab/common";
-import { DEVFLAGS } from "@/wab/devflags";
-import { flattenedKeys } from "@/wab/exprs";
-import { pathToString } from "@/wab/shared/eval/expression-parser";
+import { arrayEq, ensure, isPrefixArray, sortBy } from "@/wab/shared/common";
+import { DEVFLAGS } from "@/wab/shared/devflags";
+import { flattenedKeys } from "@/wab/shared/core/exprs";
 import { DATA_QUERY_LOWER, VARIABLE_LOWER } from "@/wab/shared/Labels";
-import { getKeysToFlatForDollarState } from "@/wab/states";
+import { pathToString } from "@/wab/shared/eval/expression-parser";
+import { Interaction } from "@/wab/shared/model/classes";
+import { getKeysToFlatForDollarState } from "@/wab/shared/core/states";
 import { HTMLElementRefOf } from "@plasmicapp/react-web";
-import { mapValues } from "lodash";
+import { head, mapValues } from "lodash";
 import deepGet from "lodash/get";
 import * as React from "react";
 import { useUpdateEffect } from "react-use";
@@ -144,6 +144,10 @@ function DataPicker_(props: DataPickerProps, ref: HTMLElementRefOf<"div">) {
       ? pathToString(value)
       : undefined
   );
+  const focusedTpl =
+    viewCtx?.focusedTpls().length === 1
+      ? head(viewCtx.focusedTpls())
+      : undefined;
   const fixedData = React.useMemo(
     // If schema is given, then include schema, mapped to undefined, in the
     // data env, even if it's not present in `data`
@@ -154,9 +158,10 @@ function DataPicker_(props: DataPickerProps, ref: HTMLElementRefOf<"div">) {
           ...(schema ? mapValues(schema, () => undefined) : undefined),
           ...data,
         },
-        viewCtx?.currentComponent()
+        viewCtx?.currentComponent(),
+        focusedTpl
       ),
-    [data, schema, viewCtx?.currentComponent()]
+    [data, schema, viewCtx?.currentComponent(), focusedTpl]
   );
   const [showAdvancedFields, setShowAdvancedFields] = React.useState(false);
   const opts: DataPickerOpts = {

@@ -1,15 +1,3 @@
-import {
-  ArenaFrame,
-  ArenaFrameRow,
-  Component,
-  ComponentArena,
-  ensureKnownComponentVariantGroup,
-  ensureMaybeKnownVariantGroup,
-  isKnownVariantGroup,
-  PageArena,
-  Site,
-  VariantGroup,
-} from "@/wab/classes";
 import { CanvasCtx } from "@/wab/client/components/canvas/canvas-ctx";
 import { maybeShowContextMenu } from "@/wab/client/components/ContextMenu";
 import ExperimentCanvasButton from "@/wab/client/components/splits/ExperimentCanvasButton";
@@ -28,12 +16,12 @@ import {
 import { useRefMap } from "@/wab/client/hooks/useRefMap";
 import { useResponsiveBreakpoints } from "@/wab/client/hooks/useResponsiveBreakpoints";
 import { StudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
-import { maybe, spawn } from "@/wab/common";
+import { maybe, spawn } from "@/wab/shared/common";
 import { MaybeWrap } from "@/wab/commons/components/ReactUtil";
 import {
   allComponentVariants,
   getSuperComponentVariantGroupToComponent,
-} from "@/wab/components";
+} from "@/wab/shared/core/components";
 import {
   ensureCustomFrameForActivatedVariants,
   getFrameHeight,
@@ -42,18 +30,30 @@ import { getComponentArenaRowLabel } from "@/wab/shared/component-arenas";
 import {
   COMBINATIONS_CAP,
   FRAME_LOWER,
-  VARIANTS_LOWER,
   VARIANT_CAP,
+  VARIANTS_LOWER,
 } from "@/wab/shared/Labels";
+import {
+  ArenaFrame,
+  ArenaFrameRow,
+  Component,
+  ComponentArena,
+  ensureKnownComponentVariantGroup,
+  ensureMaybeKnownVariantGroup,
+  isKnownVariantGroup,
+  PageArena,
+  Site,
+  VariantGroup,
+} from "@/wab/shared/model/classes";
 import { VariantOptionsType } from "@/wab/shared/TplMgr";
 import {
+  canHaveInteractionVariant,
   isGlobalVariantGroup,
   isScreenVariantGroup,
   isStandaloneVariantGroup,
   VariantCombo,
 } from "@/wab/shared/Variants";
-import { allGlobalVariantGroups } from "@/wab/sites";
-import { isTplTag } from "@/wab/tpls";
+import { allGlobalVariantGroups } from "@/wab/shared/core/sites";
 import { Button, Form, Menu, Popover } from "antd";
 import cn from "classnames";
 import { observer } from "mobx-react";
@@ -193,7 +193,7 @@ export const ComponentArenaLayout = observer(
                   [sty.groupLabel__editable]: row.rowKey,
                 })}
                 onContextMenu={(e) => {
-                  if (isKnownVariantGroup(row.rowKey))
+                  if (isKnownVariantGroup(row.rowKey)) {
                     maybeShowContextMenu(
                       e as any,
                       <Menu>
@@ -208,6 +208,7 @@ export const ComponentArenaLayout = observer(
                         </Menu.Item>
                       </Menu>
                     );
+                  }
                 }}
               >
                 {getComponentArenaRowLabel(component, row)}
@@ -226,8 +227,7 @@ export const ComponentArenaLayout = observer(
           rowEndControls={(row) => {
             const group = ensureMaybeKnownVariantGroup(row.rowKey);
             if (!group) {
-              // If the root is not a TplTag we don't allow interaction variants
-              if (!isTplTag(component.tplTree)) {
+              if (!canHaveInteractionVariant(component)) {
                 return null;
               }
               return (

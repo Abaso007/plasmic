@@ -12,13 +12,14 @@ import {
   PlasmicLeftPagesPanel,
 } from "@/wab/client/plasmic/plasmic_kit_left_pane/PlasmicLeftPagesPanel";
 import { StudioCtx, useStudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
-import { moveIndex } from "@/wab/common";
+import { moveIndex } from "@/wab/shared/common";
 import {
   isCodeComponent,
   isPageComponent,
   PageComponent,
-} from "@/wab/components";
+} from "@/wab/shared/core/components";
 import { isMixedArena } from "@/wab/shared/Arenas";
+import { componentsReferecerToPageHref } from "@/wab/shared/cached-selectors";
 import { FRAME_CAP } from "@/wab/shared/Labels";
 import { Menu } from "antd";
 import { observer } from "mobx-react";
@@ -205,9 +206,19 @@ const PageRow = observer(function PageRow(props: {
           key="delete"
           onClick={async () => {
             const confirmation = await promptDeleteComponent("page", page.name);
-            if (!confirmation) return;
-            await studioCtx.changeUnsafe(() =>
-              studioCtx.siteOps().tryRemoveComponent(page)
+            if (!confirmation) {
+              return;
+            }
+            await studioCtx.changeObserved(
+              () => {
+                return Array.from(
+                  componentsReferecerToPageHref(studioCtx.site, page)
+                );
+              },
+              ({ success }) => {
+                studioCtx.siteOps().tryRemoveComponent(page);
+                return success();
+              }
             );
           }}
         >

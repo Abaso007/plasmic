@@ -1,4 +1,30 @@
 import {
+  arrayEqIgnoreOrder,
+  assert,
+  ensure,
+  mkShortId,
+  moveIndex,
+  tuple,
+  xAddAll,
+} from "@/wab/shared/common";
+import {
+  allSuperComponentVariants,
+  getNamespacedComponentName,
+  isCodeComponent,
+} from "@/wab/shared/core/components";
+import { code } from "@/wab/shared/core/exprs";
+import { ScreenSizeSpec, parseScreenSpec } from "@/wab/shared/css-size";
+import {
+  FramePinManager,
+  withoutIrrelevantScreenVariants,
+} from "@/wab/shared/PinManager";
+import { siteCCInteractionStyleVariantsToDisplayNames } from "@/wab/shared/cached-selectors";
+import { toVarName } from "@/wab/shared/codegen/util";
+import {
+  ensureComponentArenaColsOrder,
+  ensureComponentArenaRowsOrder,
+} from "@/wab/shared/component-arenas";
+import {
   ArenaFrame,
   Arg,
   Component,
@@ -17,47 +43,30 @@ import {
   VariantGroup,
   VariantGroupState,
   VariantSetting,
-} from "@/wab/classes";
-import {
-  arrayEqIgnoreOrder,
-  assert,
-  ensure,
-  mkShortId,
-  moveIndex,
-  tuple,
-  xAddAll,
-} from "@/wab/common";
-import {
-  allSuperComponentVariants,
-  getNamespacedComponentName,
-} from "@/wab/components";
-import { code } from "@/wab/exprs";
-import { toVarName } from "@/wab/shared/codegen/util";
-import {
-  ensureComponentArenaColsOrder,
-  ensureComponentArenaRowsOrder,
-} from "@/wab/shared/component-arenas";
-import { parseScreenSpec, ScreenSizeSpec } from "@/wab/shared/Css";
-import {
-  FramePinManager,
-  withoutIrrelevantScreenVariants,
-} from "@/wab/shared/PinManager";
+} from "@/wab/shared/model/classes";
 import { ResponsiveStrategy } from "@/wab/shared/responsiveness";
 import {
+  UNINITIALIZED_VALUE,
   allGlobalVariantGroups,
   getResponsiveStrategy,
-  UNINITIALIZED_VALUE,
   writeable,
-} from "@/wab/sites";
+} from "@/wab/shared/core/sites";
 import {
   getLessSelector,
   getPseudoSelector,
   mkRuleSet,
   pseudoSelectors,
-} from "@/wab/styles";
-import { summarizeTplTag } from "@/wab/tpls";
+} from "@/wab/shared/core/styles";
+import {
+  TplCodeComponent,
+  isComponentRoot,
+  isTplComponent,
+  isTplTag,
+  summarizeTplTag,
+} from "@/wab/shared/core/tpls";
 import { arrayContains } from "class-validator";
-import L, { orderBy } from "lodash";
+import L, { orderBy, uniqBy } from "lodash";
+import { isTplRootWithCodeComponentInteractionVariants } from "@/wab/shared/code-components/interaction-variants";
 
 export const BASE_VARIANT_NAME = "base";
 
@@ -111,6 +120,13 @@ interface _VariantPath {
   // Component wise variant group and its order with regard to its peer groups
   vg: [VariantGroup, number] | undefined;
   path: Array<[Variant, number]>;
+}
+
+export function canHaveInteractionVariant(component: Component) {
+  const tplRoot = component.tplTree;
+  return (
+    isTplTag(tplRoot) || isTplRootWithCodeComponentInteractionVariants(tplRoot)
+  );
 }
 
 export function isStandaloneVariantGroup(
@@ -233,7 +249,9 @@ export function isArbitraryCssSelector(variant: Variant) {
   );
 }
 
-export function isStyleVariant(variant: Variant) {
+export type StyleVariant = Variant & { selectors: string[] };
+
+export function isStyleVariant(variant: Variant): variant is StyleVariant {
   return !!variant.selectors;
 }
 
@@ -673,6 +691,24 @@ export function variantComboKey(combo: VariantCombo) {
 export function ensureValidCombo(component: Component, combo: VariantCombo) {
   if (!isBaseVariant(combo)) {
     combo = combo.filter((v) => !isBaseVariant(v));
+    combo = uniqBy(combo, (v) => {
+      /**
+       * Handle the following cases:
+       * 1. Variant that doesn't have a parent (e.g. style variants like :hover)
+       * 2. Standalone variant groups (e.g variants that are the only variant in a group / toggle variants)
+       * 3. Multi variant groups
+       *
+       * In all these cases, we can just use the variant uuid as the key, since any combination of these
+       * would be allowed in the combo
+       */
+      if (!v.parent || isStandaloneVariantGroup(v.parent) || v.parent.multi) {
+        return v.uuid;
+      }
+      // This means that we are dealing with a single choice variant group
+      // We can only have one variant from a single choice variant group
+      // So we can just use the parent uuid as the key,
+      return v.parent.uuid;
+    });
   }
   if (combo.length === 0) {
     combo = [getBaseVariant(component)];
@@ -789,6 +825,7 @@ export function getDisplayVariants({
     displayName: makeVariantName({
       variant,
       focusedTag: isPrivateStyleVariant(variant) ? focusedTag : undefined,
+      site,
     }),
     isSelected: pinManager.isSelected(variant),
     variant,
@@ -805,15 +842,31 @@ export function isFrameWithVariantCombo({
   return getDisplayVariants({ site, frame }).length > 1;
 }
 
+export function getStyleVariantSelectorsDisplayNames(
+  variant: StyleVariant,
+  site?: Site
+) {
+  if (site && siteCCInteractionStyleVariantsToDisplayNames(site).has(variant)) {
+    return siteCCInteractionStyleVariantsToDisplayNames(site).get(variant)!;
+  }
+  return variant.selectors;
+}
+
+export function makeStyleVariantName(variant: StyleVariant, site?: Site) {
+  return getStyleVariantSelectorsDisplayNames(variant, site).join(", ");
+}
+
 export function makeVariantName({
   variant,
   focusedTag,
   superComp,
+  site,
 }: {
   variant: Variant;
   focusedTag?: TplTag;
   includeGroupName?: boolean;
   superComp?: Component;
+  site?: Site;
 }) {
   return (
     (isPrivateStyleVariant(variant)
@@ -824,7 +877,7 @@ export function makeVariantName({
           .filter(Boolean)
           .join(": ")
       : isStyleVariant(variant)
-      ? variant.selectors?.join(", ")
+      ? makeStyleVariantName(variant, site)
       : superComp
       ? `${getNamespacedComponentName(superComp)} • ${variant.name}`
       : variant.name) || "UnnamedVariant"

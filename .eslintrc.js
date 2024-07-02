@@ -1,4 +1,4 @@
-const TYPES = `AnyType|Arena|ArenaChild|ArenaFrame|ArenaFrameCell|ArenaFrameGrid|ArenaFrameRow|Arg|ArgType|BindingStruct|BoolType|Choice|ClassNamePropType|CodeComponentHelper|CodeComponentMeta|CodeLibrary|CollectionExpr|ColorPropType|ColumnsConfig|ColumnsSetting|Component|ComponentArena|ComponentDataQuery|ComponentInstance|ComponentSwapSplitContent|ComponentTemplateInfo|ComponentVariantGroup|ComponentVariantSplitContent|CompositeExpr|CustomCode|CustomFunction|DataSourceOpExpr|DataSourceTemplate|DateRangeStrings|DateString|DefaultStylesClassNamePropType|DefaultStylesPropType|EventHandler|Expr|ExprText|FigmaComponentMapping|FunctionArg|FunctionExpr|FunctionType|GenericEventHandler|GlobalVariantGroup|GlobalVariantGroupParam|GlobalVariantSplitContent|HostLessPackageInfo|HrefType|ImageAsset|ImageAssetRef|Img|Interaction|LabeledSelector|MapExpr|Marker|Mixin|NameArg|NamedState|NodeMarker|Num|ObjectPath|PageArena|PageHref|PageMeta|Param|PlumeInfo|PlumeInstance|PrimitiveType|ProjectDependency|PropParam|QueryData|QueryInvalidationExpr|QueryRef|RandomSplitSlice|RawText|RenderExpr|RenderFuncType|RenderableType|Rep|RichText|Rule|RuleSet|Scalar|SegmentSplitSlice|SelectorRuleSet|Site|SlotParam|Split|SplitContent|SplitSlice|State|StateChangeHandlerParam|StateParam|StrongFunctionArg|StyleExpr|StyleMarker|StyleNode|StylePropType|StyleScopeClassNamePropType|StyleToken|StyleTokenRef|TargetType|TemplatedString|Text|Theme|ThemeLayoutSettings|ThemeStyle|TplComponent|TplNode|TplRef|TplSlot|TplTag|Var|VarRef|Variant|VariantGroup|VariantGroupState|VariantSetting|VariantedRuleSet|VariantedValue|VariantsRef|VirtualRenderExpr`;
+const TYPES = `AnyType|Arena|ArenaChild|ArenaFrame|ArenaFrameCell|ArenaFrameGrid|ArenaFrameRow|Arg|ArgType|BindingStruct|BoolType|Choice|ClassNamePropType|CodeComponentHelper|CodeComponentInteractionVariantMeta|CodeComponentMeta|CodeLibrary|CollectionExpr|ColorPropType|ColumnsConfig|ColumnsSetting|Component|ComponentArena|ComponentDataQuery|ComponentInstance|ComponentSwapSplitContent|ComponentTemplateInfo|ComponentVariantGroup|ComponentVariantSplitContent|CompositeExpr|CustomCode|CustomFunction|DataSourceOpExpr|DataSourceTemplate|DateRangeStrings|DateString|DefaultStylesClassNamePropType|DefaultStylesPropType|EventHandler|Expr|ExprText|FigmaComponentMapping|FunctionArg|FunctionExpr|FunctionType|GenericEventHandler|GlobalVariantGroup|GlobalVariantGroupParam|GlobalVariantSplitContent|HostLessPackageInfo|HrefType|ImageAsset|ImageAssetRef|Img|Interaction|LabeledSelector|MapExpr|Marker|Mixin|NameArg|NamedState|NodeMarker|Num|ObjectPath|PageArena|PageHref|PageMeta|Param|PlumeInfo|PlumeInstance|PrimitiveType|ProjectDependency|PropParam|QueryData|QueryInvalidationExpr|QueryRef|RandomSplitSlice|RawText|RenderExpr|RenderFuncType|RenderableType|Rep|RichText|Rule|RuleSet|Scalar|SegmentSplitSlice|SelectorRuleSet|Site|SlotParam|Split|SplitContent|SplitSlice|State|StateChangeHandlerParam|StateParam|StrongFunctionArg|StyleExpr|StyleMarker|StyleNode|StylePropType|StyleScopeClassNamePropType|StyleToken|StyleTokenRef|TargetType|TemplatedString|Text|Theme|ThemeLayoutSettings|ThemeStyle|TplComponent|TplNode|TplRef|TplSlot|TplTag|Var|VarRef|Variant|VariantGroup|VariantGroupState|VariantSetting|VariantedRuleSet|VariantedValue|VariantsRef|VirtualRenderExpr`;
 
 const clientFiles = [
   "platform/wab/src/wab/main.tsx",
@@ -14,9 +14,11 @@ const testFiles = [
   "**/*.spec.tsx",
   "**/*-spec.ts",
   "**/*-spec.tsx",
+  "**/*.stories.tsx",
   "**/*.test.ts",
   "**/*.test.tsx",
   "**/test/**/*",
+  "**/__mocks__/**/*",
 ];
 
 module.exports = {
@@ -33,12 +35,13 @@ module.exports = {
     "platform/wab/create-react-app-new/",
     "platform/wab/deps/",
     "platform/wab/public/static/",
-    "platform/wab/src/wab/classes.ts",
-    "platform/wab/src/wab/classes-metas.ts",
     "platform/wab/src/wab/client/plasmic/",
     "platform/wab/src/wab/client/sandboxes/",
+    "platform/wab/src/wab/shared/model/classes.ts",
+    "platform/wab/src/wab/shared/model/classes-metas.ts",
   ],
   rules: {
+    curly: "error",
     // Maybe not needed, from public-packages
     // "@typescript-eslint/no-empty-interface": "off",
     // "@typescript-eslint/ban-ts-comment": "off",
@@ -249,15 +252,7 @@ module.exports = {
         "import/no-extraneous-dependencies": [
           "error",
           {
-            devDependencies: [
-              "**/*.spec.ts",
-              "**/*.spec.tsx",
-              "**/*-spec.ts",
-              "**/*-spec.tsx",
-              "**/*.stories.tsx",
-              "**/*.test.ts",
-              "**/*.test.tsx",
-            ],
+            devDependencies: testFiles,
           },
         ],
         "no-relative-import-paths/no-relative-import-paths": [

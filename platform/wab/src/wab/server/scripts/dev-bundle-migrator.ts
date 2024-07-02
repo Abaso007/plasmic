@@ -1,15 +1,15 @@
-import { assert, maybeOne, spawn } from "@/wab/common";
-import { unbundleSite } from "@/wab/server/db/bundle-migration-utils";
 import {
+  MigrationDbMgr,
   getLastBundleVersion,
   getMigrationsToExecute,
-  MigrationDbMgr,
 } from "@/wab/server/db/BundleMigrator";
 import { flattenDeps } from "@/wab/server/db/DbBundleLoader";
+import { unbundleSite } from "@/wab/server/db/bundle-migration-utils";
 import { PkgVersion, ProjectRevision } from "@/wab/server/entities/Entities";
 import type { ProjectFullDataResponse } from "@/wab/shared/ApiSchema";
 import { Bundler } from "@/wab/shared/bundler";
 import { Bundle } from "@/wab/shared/bundles";
+import { assert, maybeOne, spawn } from "@/wab/shared/common";
 import { assertSiteInvariants } from "@/wab/shared/site-invariants";
 import fs from "fs";
 import * as Prettier from "prettier";
@@ -23,7 +23,9 @@ const paths = [
   "src/wab/shared/codegen/__tests__/bundles/form-with-reset-input.json",
   "src/wab/shared/codegen/__tests__/bundles/people-list-explicit-states.json",
   "src/wab/shared/codegen/__tests__/bundles/people-list-implicit-states.json",
-  "src/wab/server/pkgs/plume-master-pkg.json",
+  "src/wab/shared/codegen/__tests__/bundles/custom-functions-test.json",
+  "src/wab/server/pkg-mgr/data/plume-master-pkg.json",
+  "src/wab/server/pkg-mgr/data/plexus-master-pkg.json",
   "cypress/bundles/state-management.json",
   "cypress/bundles/code-libs.json",
   "cypress/bundles/prop-editors.json",
@@ -62,6 +64,7 @@ const paths = [
   "src/wab/shared/site-diffs/__tests__/test-merging-deps.json",
   "src/wab/shared/site-diffs/__tests__/test-edge-cases-merge.json",
   "src/wab/shared/site-diffs/__tests__/test-edge-cases-merge-2.json",
+  "src/wab/shared/site-diffs/__tests__/test-reroot.json",
   "src/wab/shared/site-diffs/__tests__/global-context-merge.json",
   "src/wab/shared/site-diffs/__tests__/style-tokens-conflict.json",
   "src/wab/shared/insertable-templates/__tests__/bundles/copy-and-paste.json",

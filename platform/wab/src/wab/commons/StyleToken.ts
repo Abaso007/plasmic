@@ -1,16 +1,16 @@
-import { Mixin, Site, StyleToken } from "@/wab/classes";
-import { ensure, tuple, unexpected, withoutNils } from "@/wab/common";
-import { getLengthUnits } from "@/wab/css";
 import * as cssPegParser from "@/wab/gen/cssPegParser";
-import { DependencyWalkScope } from "@/wab/project-deps";
 import { BadRequestError } from "@/wab/shared/ApiErrors/errors";
 import { UpsertTokenReq } from "@/wab/shared/ApiSchema";
-import { toVarName } from "@/wab/shared/codegen/util";
 import { MIXIN_CAP } from "@/wab/shared/Labels";
 import { RuleSetHelpers } from "@/wab/shared/RuleSetHelpers";
 import { TplMgr } from "@/wab/shared/TplMgr";
 import { VariantedStylesHelper } from "@/wab/shared/VariantedStylesHelper";
-import { allTokensOfType } from "@/wab/sites";
+import { toVarName } from "@/wab/shared/codegen/util";
+import { ensure, tuple, unexpected, withoutNils } from "@/wab/shared/common";
+import { DependencyWalkScope } from "@/wab/shared/core/project-deps";
+import { allTokensOfType } from "@/wab/shared/core/sites";
+import { getLengthUnits } from "@/wab/shared/css";
+import { Mixin, Site, StyleToken } from "@/wab/shared/model/classes";
 import CSSEscape from "css.escape";
 import L from "lodash";
 import type { Opaque, SetOptional } from "type-fest";
@@ -141,7 +141,9 @@ export const tryParseTokenRef = (
     | Map<string, StyleToken>
 ) => {
   const m = ref.match(RE_TOKENREF);
-  if (!m) return undefined;
+  if (!m) {
+    return undefined;
+  }
   const tokenId = m[1];
   if (L.isArray(tokensProvider) || L.isFunction(tokensProvider)) {
     const tokens = L.isArray(tokensProvider)
@@ -243,11 +245,19 @@ export const getExternalMixinPropVarName = (mixin: Mixin, p: string) =>
 export const getMixinPropVarName = (
   mixin: Mixin,
   p: string,
-  tryIndirect: boolean
-) => `--mixin-${tryIndirect && mixin.forTheme ? "default" : mixin.uuid}_${p}`;
+  tryIndirect: boolean,
+  infix?: string
+) =>
+  `--mixin-${tryIndirect && mixin.forTheme ? "default" : mixin.uuid}${
+    infix ? `-${infix}` : ""
+  }_${p}`;
 
-export const mkMixinPropRef = (mixin: Mixin, p: string, tryIndirect: boolean) =>
-  `var(${getMixinPropVarName(mixin, p, tryIndirect)})`;
+export const mkMixinPropRef = (
+  mixin: Mixin,
+  p: string,
+  tryIndirect: boolean,
+  infix?: string
+) => `var(${getMixinPropVarName(mixin, p, tryIndirect, infix)})`;
 
 export const isMixinPropRef = (ref: string) => ref.startsWith("var(--mixin-");
 
@@ -256,7 +266,9 @@ export const tryParseMixinPropRef = (
   mixins: Mixin[] | Map<string, Mixin>
 ) => {
   const m = ref.match(/var\(--mixin-(.+)_(.*)\)$/);
-  if (!m) return undefined;
+  if (!m) {
+    return undefined;
+  }
   const mixin = Array.isArray(mixins)
     ? mixins.find((t) => t.uuid === m[1])
     : mixins.get(m[1]);
@@ -313,6 +325,37 @@ export function derefToken(
   vsh?: VariantedStylesHelper
 ): TokenValue {
   return resolveToken(tokens, token, vsh).value;
+}
+
+/**
+ *  De-refs the token only if the ref is not known by the destination
+ * E.g.
+ * Token: primary -> gray-900 (the ref coming from a Lib-A) -> #111827
+ * Destination:
+ * - Case-1: Lib-A is not imported by the destination. In this case, the gray-900 ref is not known. So the token is de-reffed to return #111827
+ * - Case-2: Lib-A is imported by the destination. In this case, the gray-900 ref is known, so the token is not re-reffed and gray-900 is returned
+ * @param currentTokens Tokens available in the destination
+ * @param oldTokens Tokens that were available in the origin
+ * @param token the token being transferred from origin to destination
+ * @param vsh VariantedStyleHelper
+ * @returns the token's primitive/de-reffed value only if the ref is not known by the destination
+ */
+export function maybeDerefToken(
+  currentTokens: StyleToken[] | Map<string, StyleToken>,
+  oldTokens: StyleToken[] | Map<string, StyleToken>,
+  token: StyleToken,
+  vsh?: VariantedStylesHelper
+): TokenValue {
+  try {
+    // If its a token ref and the ref is present in the current project, then don't de-ref it, because the ref in value is known
+    if (isTokenRef(vsh?.getActiveTokenValue(token) ?? token.value)) {
+      parseTokenRef(token.value, currentTokens);
+    }
+    return token.value as TokenValue;
+  } catch (e) {
+    // The ref in value is not known, so resolve the token to a primitive value
+    return resolveToken(oldTokens, token, vsh).value;
+  }
 }
 
 export function lazyDerefTokenRefs(

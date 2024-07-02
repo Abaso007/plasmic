@@ -1,3 +1,13 @@
+import { assert, ensure, ensureString, mkUuid } from "@/wab/shared/common";
+import {
+  asCode,
+  clone,
+  ExprCtx,
+  stripParensAndMaybeConvertToIife,
+} from "@/wab/shared/core/exprs";
+import { ApiDataSource } from "@/wab/shared/ApiSchema";
+import type { DataSourceType } from "@/wab/shared/data-sources-meta/data-source-registry";
+import { substitutePlaceholder } from "@/wab/shared/dynamic-bindings";
 import {
   CustomCode,
   DataSourceOpExpr,
@@ -7,12 +17,7 @@ import {
   ObjectPath,
   QueryInvalidationExpr,
   TemplatedString,
-} from "@/wab/classes";
-import { assert, ensure, ensureString, mkUuid } from "@/wab/common";
-import { asCode, clone, ExprCtx } from "@/wab/exprs";
-import { ApiDataSource } from "@/wab/shared/ApiSchema";
-import type { DataSourceType } from "@/wab/shared/data-sources-meta/data-source-registry";
-import { substitutePlaceholder } from "@/wab/shared/dynamic-bindings";
+} from "@/wab/shared/model/classes";
 import {
   DataSourceSchema,
   Pagination,
@@ -368,9 +373,17 @@ export function dataSourceTemplateToString(
 export function exprToDataSourceString(expr: Expr, exprCtx: ExprCtx) {
   return isKnownTemplatedString(expr)
     ? expr.text
-        .map((t) => (isString(t) ? t : `{{ ${asCode(t, exprCtx).code} }}`))
+        .map((t) =>
+          isString(t)
+            ? t
+            : `{{ ${stripParensAndMaybeConvertToIife(asCode(t, exprCtx).code, {
+                addParens: true,
+              })} }}`
+        )
         .join("")
-    : `{{ ${asCode(expr, exprCtx).code} }}`;
+    : `{{ ${stripParensAndMaybeConvertToIife(asCode(expr, exprCtx).code, {
+        addParens: true,
+      })} }}`;
 }
 
 export type FiltersLogic =

@@ -1,13 +1,4 @@
 import {
-  Component,
-  isKnownRenderExpr,
-  isKnownVirtualRenderExpr,
-  TplComponent,
-  TplNode,
-  TplSlot,
-  TplTag,
-} from "@/wab/classes";
-import {
   TplComponentNameSection,
   TplTagNameSection,
 } from "@/wab/client/components/sidebar-tabs/ComponentPropsSection";
@@ -35,15 +26,24 @@ import { useCurrentRecordingTarget } from "@/wab/client/hooks/useCurrentRecordin
 import SlotIcon from "@/wab/client/plasmic/plasmic_kit/PlasmicIcon__Slot";
 import { StudioCtx, useStudioCtx } from "@/wab/client/studio-ctx/StudioCtx";
 import { ViewCtx } from "@/wab/client/studio-ctx/view-ctx";
-import { cx, spawn } from "@/wab/common";
+import { cx, spawn } from "@/wab/shared/common";
 import {
   getComponentDisplayName,
   isCodeComponent,
   isFrameComponent,
   isPageComponent,
-} from "@/wab/components";
+} from "@/wab/shared/core/components";
 import { isDedicatedArena } from "@/wab/shared/Arenas";
 import { MIXINS_CAP } from "@/wab/shared/Labels";
+import {
+  Component,
+  isKnownRenderExpr,
+  isKnownVirtualRenderExpr,
+  TplComponent,
+  TplNode,
+  TplSlot,
+  TplTag,
+} from "@/wab/shared/model/classes";
 import {
   getAncestorTplSlot,
   isCodeComponentSlot,
@@ -55,15 +55,15 @@ import {
   getPrivateStyleVariantsForTag,
   isBaseVariant,
 } from "@/wab/shared/Variants";
-import { isTplAttachedToSite } from "@/wab/sites";
-import { SlotSelection } from "@/wab/slots";
+import { isTplAttachedToSite } from "@/wab/shared/core/sites";
+import { SlotSelection } from "@/wab/shared/core/slots";
 import { selectionControlsColor } from "@/wab/styles/css-variables";
 import {
   isTplComponent,
   isTplSlot,
   isTplTag,
   isTplVariantable,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import { Alert, Button } from "antd";
 import * as mobx from "mobx";
 import { observer } from "mobx-react";
@@ -420,16 +420,20 @@ const SlotSelectionMessage = observer(function SlotSelectionMessage(props: {
   return (
     <div className="canvas-editor__right-float-pane">
       <SidebarSection>
-        <div className="flex flex-vcenter">
-          <Icon icon={SlotIcon} className="component-fg mr-sm" />
-          <div className="code text-xlg flex-fill">
-            {node.slotParam.variable.name}
+        <div className="flex flex-col gap-lg">
+          <div className="flex flex-vcenter">
+            <Icon icon={SlotIcon} className="component-fg mr-sm" />
+            <div className="code text-xlg flex-fill">
+              {node.slotParam.variable.name}
+            </div>
+            <div className="ml-sm">
+              Slot for <code>{getComponentDisplayName(component)}</code>
+            </div>
           </div>
-          <div className="ml-sm">
-            Slot for <code>{getComponentDisplayName(component)}</code>
-          </div>
+          <p className="text-m">{node.slotParam.about}</p>
         </div>
       </SidebarSection>
+
       {arg &&
         isKnownRenderExpr(arg.expr) &&
         !isKnownVirtualRenderExpr(arg.expr) && (
@@ -484,10 +488,12 @@ const TplSlotMessage = observer(function TplSlotMessage(props: {
           showIcon={true}
           message={
             <div>
-              This is a slot target; instances of{" "}
+              This is a slot target - instances of{" "}
               <code>{getComponentDisplayName(component)}</code> can customize
               the content of this slot target. You can provide default text
-              styles to control how text and icons look in this slot.
+              styles to control how text and icons look in this slot. You cannot
+              reference dynamic values specific to this component, since the
+              owner of the slot content is the instance parent.
             </div>
           }
         />

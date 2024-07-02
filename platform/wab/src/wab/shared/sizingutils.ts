@@ -1,19 +1,11 @@
-import {
-  ArenaFrame,
-  Component,
-  isKnownTplTag,
-  TplComponent,
-  TplNode,
-  Variant,
-  VariantSetting,
-} from "@/wab/classes";
-import { assert, ensure } from "@/wab/common";
+import { assert, ensure } from "@/wab/shared/common";
 import { isTokenRef } from "@/wab/commons/StyleToken";
 import {
   getEffectiveVariantSettingOfDeepRootElement,
   isPageComponent,
-} from "@/wab/components";
-import { parseCssNumericNew } from "@/wab/css";
+  PageComponent,
+} from "@/wab/shared/core/components";
+import { parseCssNumericNew } from "@/wab/shared/css";
 import { ComponentGenHelper } from "@/wab/shared/codegen/codegen-helpers";
 import {
   CONTENT_LAYOUT_FULL_BLEED,
@@ -36,6 +28,15 @@ import {
 } from "@/wab/shared/layoututils";
 import { keyedComputedFn } from "@/wab/shared/mobx-util";
 import {
+  ArenaFrame,
+  Component,
+  isKnownTplTag,
+  TplComponent,
+  TplNode,
+  Variant,
+  VariantSetting,
+} from "@/wab/shared/model/classes";
+import {
   getCssDefault,
   IRuleSetHelpersX,
   ReadonlyIRuleSetHelpersX,
@@ -50,8 +51,8 @@ import {
   VariantCombo,
 } from "@/wab/shared/Variants";
 import { VariantTplMgr } from "@/wab/shared/VariantTplMgr";
-import { getArenaFrameActiveVariants } from "@/wab/sites";
-import { createRuleSetMerger, expandRuleSets } from "@/wab/styles";
+import { getArenaFrameActiveVariants } from "@/wab/shared/core/sites";
+import { createRuleSetMerger, expandRuleSets } from "@/wab/shared/core/styles";
 import {
   isCodeComponentRoot,
   isComponentRoot,
@@ -62,7 +63,7 @@ import {
   isTplTag,
   isTplTextBlock,
   isTplVariantable,
-} from "@/wab/tpls";
+} from "@/wab/shared/core/tpls";
 import memoizeOne from "memoize-one";
 
 export function isSizeProp(prop: string): prop is "width" | "height" {
@@ -489,7 +490,7 @@ export function getParentExp(
   tpl: TplNode,
   variantCombo: VariantCombo
 ) {
-  const parent = ctx.layoutParent(tpl);
+  const parent = ctx.layoutParent(tpl, false);
   if (isKnownTplTag(parent)) {
     return ctx.getEffectiveVariantSetting(parent, variantCombo).rsh();
   }
@@ -600,10 +601,9 @@ export type PageSizeType = "fixed" | "stretch" | "wrap";
 
 export function getPageFrameSizeType(pageFrame: ArenaFrame): PageSizeType {
   const activeVariants = getArenaFrameActiveVariants(pageFrame);
-  return getPageComponentSizeType(
-    pageFrame.container.component,
-    activeVariants
-  );
+  const component = pageFrame.container.component;
+  assert(isPageComponent(component), "Must be a PageComponent");
+  return getPageComponentSizeType(component, activeVariants);
 }
 
 /**
@@ -623,11 +623,9 @@ export function getPageFrameSizeType(pageFrame: ArenaFrame): PageSizeType {
  * Components, these settings still make sense.
  */
 export function getPageComponentSizeType(
-  component: Component,
+  component: PageComponent,
   activeVariants: VariantCombo = []
 ) {
-  assert(component.pageMeta, "Must be a PageComponent");
-
   const rootEffectiveVS = getEffectiveVariantSettingOfDeepRootElement(
     component,
     activeVariants
@@ -645,7 +643,10 @@ export function getPageComponentSizeType(
   }
 }
 
-export function setPageSizeType(component: Component, sizeType: PageSizeType) {
+export function setPageSizeType(
+  component: PageComponent,
+  sizeType: PageSizeType
+) {
   assert(component.pageMeta, "Must be a PageComponent");
   const root = component.tplTree as TplNode;
   const exp = RSH(

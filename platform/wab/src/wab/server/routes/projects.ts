@@ -1,40 +1,28 @@
-import {
-  Component,
-  ensureKnownProjectDependency,
-  ensureKnownSite,
-  ProjectDependency,
-  Site,
-} from "@/wab/classes";
-import { modelSchemaHash } from "@/wab/classes-metas";
-import { getSandbox, shareSandbox } from "@/wab/codesandbox/api";
-import {
-  createNewSandbox,
-  getCodesandboxOpts,
-  getVersionTxt,
-  updateSandbox,
-} from "@/wab/codesandbox/utils";
-import { Dict, mkIdMap } from "@/wab/collections";
+import { Dict, mkIdMap } from "@/wab/shared/collections";
 import {
   arrayEqIgnoreOrder,
   assert,
   ensure,
   ensureType,
   maybe,
-  maybes,
   mkShortId,
   mkUuid,
   strictFind,
   uncheckedCast,
   withoutNils,
   xGroupBy,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import * as semver from "@/wab/commons/semver";
 import { addOrUpsertTokens } from "@/wab/commons/StyleToken";
 import { toOpaque } from "@/wab/commons/types";
 import { ProjectVersionMeta, VersionResolution } from "@/wab/commons/versions";
-import { ComponentType, isPlasmicComponent } from "@/wab/components";
-import { DEVFLAGS } from "@/wab/devflags";
-import { syncGlobalContexts } from "@/wab/project-deps";
+import {
+  ComponentType,
+  isPageComponent,
+  isPlasmicComponent,
+} from "@/wab/shared/core/components";
+import { DEVFLAGS } from "@/wab/shared/devflags";
+import { syncGlobalContexts } from "@/wab/shared/core/project-deps";
 import { createBranchFromBase } from "@/wab/server/branch";
 import { reevaluateDataSourceExprOpIds } from "@/wab/server/data-sources/data-source-utils";
 import { unbundleSite } from "@/wab/server/db/bundle-migration-utils";
@@ -55,6 +43,7 @@ import {
 } from "@/wab/server/db/DbMgr";
 import { onProjectDelete } from "@/wab/server/db/op-hooks";
 import { upgradeReferencedHostlessDeps } from "@/wab/server/db/upgrade-hostless-utils";
+import { sendCommentNotificationEmail } from "@/wab/server/emails/comment-notification-email";
 import {
   Branch,
   PkgVersion,
@@ -62,7 +51,7 @@ import {
   ProjectRevision,
 } from "@/wab/server/entities/Entities";
 import "@/wab/server/extensions";
-import { REAL_PLUME_VERSION } from "@/wab/server/pkgs/plume-pkg-mgr";
+import { REAL_PLUME_VERSION } from "@/wab/server/pkg-mgr/plume-pkg-mgr";
 import { mkApiDataSource } from "@/wab/server/routes/data-source";
 import { checkEtagSkippable } from "@/wab/server/routes/loader";
 import { moveBundleAssetsToS3 } from "@/wab/server/routes/moveAssetsToS3";
@@ -80,7 +69,6 @@ import {
   userAnalytics,
   userDbMgr,
 } from "@/wab/server/routes/util";
-import { getCodesandboxToken } from "@/wab/server/secrets";
 import { broadcastProjectsMessage } from "@/wab/server/socket-util";
 import { TutorialType } from "@/wab/server/tutorialdb/tutorialdb-utils";
 import { withSpan } from "@/wab/server/util/apm-util";
@@ -96,6 +84,7 @@ import {
   AddCommentReactionRequest,
   ApiNotificationSettings,
   ApiProject,
+  ApiProjectMeta,
   BranchId,
   CloneProjectRequest,
   CommentId,
@@ -128,7 +117,7 @@ import {
   UpdateProjectReq,
   UpdateProjectResponse,
 } from "@/wab/shared/ApiSchema";
-import { fullName, parseProjectBranchId } from "@/wab/shared/ApiSchemaUtil";
+import { parseProjectBranchId } from "@/wab/shared/ApiSchemaUtil";
 import {
   Bundler,
   checkBundleFields,
@@ -154,9 +143,16 @@ import { exportStyleConfig } from "@/wab/shared/codegen/react-p";
 import { exportStyleTokens } from "@/wab/shared/codegen/style-tokens";
 import { ExportOpts } from "@/wab/shared/codegen/types";
 import { toClassName } from "@/wab/shared/codegen/util";
-import { CodeSandboxInfo } from "@/wab/shared/db-json-blobs";
 import { accessLevelRank } from "@/wab/shared/EntUtil";
 import { DomainValidator } from "@/wab/shared/hosting";
+import {
+  Component,
+  ensureKnownProjectDependency,
+  ensureKnownSite,
+  ProjectDependency,
+  Site,
+} from "@/wab/shared/model/classes";
+import { modelSchemaHash } from "@/wab/shared/model/classes-metas";
 import { createTaggedResourceId } from "@/wab/shared/perms";
 import { requiredPackageVersions } from "@/wab/shared/required-versions";
 import { PkgVersionInfoMeta } from "@/wab/shared/SharedApi";
@@ -168,13 +164,21 @@ import {
   getAllOpExprSourceIdsUsedInSite,
   localComponents,
   localIcons,
-} from "@/wab/sites";
-import { createProjectUrl, getCodegenUrl } from "@/wab/urls";
+} from "@/wab/shared/core/sites";
+import { getCodegenUrl } from "@/wab/shared/urls";
 import * as Sentry from "@sentry/node";
-import { ISandbox } from "codesandbox-import-util-types";
 import { Request, Response } from "express-serve-static-core";
-import * as _ from "lodash";
-import L, { isString, last, uniq, without } from "lodash";
+import {
+  fromPairs,
+  isString,
+  last,
+  map,
+  omit,
+  pick,
+  sortBy,
+  uniq,
+  without,
+} from "lodash";
 import fetch from "node-fetch";
 import * as Prettier from "prettier";
 import type { SetRequired } from "type-fest";
@@ -186,12 +190,16 @@ export function mkApiProject(project: Project): ApiProject {
     ? mkApiTeam(project.workspace.team)
     : null;
   return {
-    ...L.omit(project, "workspace"),
+    ...omit(project, "workspace"),
     workspaceName: project.workspace?.name || null,
     teamId: project.workspace?.teamId || null,
     teamName: team?.name || null,
     featureTier: team?.featureTier || null,
-    uiConfig: mergeUiConfigs(team?.uiConfig, project.workspace?.uiConfig),
+    uiConfig: mergeUiConfigs(
+      team?.uiConfig,
+      project.workspace?.uiConfig,
+      project.uiConfig
+    ),
     contentCreatorConfig: project.workspace?.team?.featureTier
       ?.editContentCreatorMode
       ? project.workspace?.contentCreatorConfig
@@ -245,6 +253,7 @@ export async function createProject(req: Request, res: Response) {
     bundler,
     name: name ?? "Untitled Project",
     workspaceId,
+    ownerEmail: req.user?.email,
   });
   userAnalytics(req).track({
     event: "Create project",
@@ -253,7 +262,7 @@ export async function createProject(req: Request, res: Response) {
     },
   });
   req.promLabels.projectId = project.id;
-  res.json({ project: mkApiProject(project), rev: _.omit(rev, "data") });
+  res.json({ project: mkApiProject(project), rev: omit(rev, "data") });
 }
 
 export async function createProjectWithHostlessPackages(
@@ -279,10 +288,11 @@ export async function createProjectWithHostlessPackages(
     site,
     bundler,
     name: "Untitled Project",
+    ownerEmail: req.user?.email,
   });
 
   req.promLabels.projectId = project.id;
-  res.json({ project: mkApiProject(project), rev: _.omit(rev, "data") });
+  res.json({ project: mkApiProject(project), rev: omit(rev, "data") });
 }
 
 export async function cloneProject(req: Request, res: Response) {
@@ -293,6 +303,7 @@ export async function cloneProject(req: Request, res: Response) {
     name,
     workspaceId,
     branchName,
+    ownerEmail: req.user?.email,
   });
   req.promLabels.projectId = projectId;
   res.json({ projectId: project.id, workspaceId: project.workspaceId });
@@ -310,6 +321,7 @@ export async function clonePublishedTemplate(req: Request, res: Response) {
     name,
     workspaceId,
     hostUrl,
+    ownerEmail: req.user?.email,
   });
   userAnalytics(req).track({
     event: "Clone template",
@@ -617,14 +629,12 @@ export async function doImportProject(
         project.workspaceId!,
         "Imported data source"
       );
-      oldToNewSourceIds = _.fromPairs(
+      oldToNewSourceIds = fromPairs(
         sourceIds.map((id) => [id, newDataSource.id])
       );
     } else {
       const { fakeSourceId } = opts.dataSourceReplacement;
-      oldToNewSourceIds = _.fromPairs(
-        sourceIds.map((id) => [id, fakeSourceId])
-      );
+      oldToNewSourceIds = fromPairs(sourceIds.map((id) => [id, fakeSourceId]));
     }
     await reevaluateDataSourceExprOpIds(mgr, unbundledSite, oldToNewSourceIds);
     const newBundle = bundler.bundle(
@@ -981,7 +991,7 @@ export async function getModelUpdates(req: Request, res: Response) {
     return loadDepPackages(mgr, bundle);
   };
 
-  const partialChanges = L.sortBy(
+  const partialChanges = sortBy(
     await mgr.getPartialRevsFromRevisionNumber(
       projectId,
       revisionNum,
@@ -1038,7 +1048,7 @@ export async function getModelUpdates(req: Request, res: Response) {
         }
       });
       data = {
-        ...L.omit(changeBundle, ["map"]),
+        ...omit(changeBundle, ["map"]),
         map: newMap,
       };
     }
@@ -1046,10 +1056,8 @@ export async function getModelUpdates(req: Request, res: Response) {
 
     res.json({
       data: JSON.stringify(data),
-      revision: ensure(
-        L.last(partialChanges),
-        "Couldn't find last partialChange"
-      ).revision,
+      revision: ensure(last(partialChanges), "Couldn't find last partialChange")
+        .revision,
       depPkgs: deps.filter((dep) => !installedDeps.has(dep.id)),
       deletedIids: Array.from(deletedIids),
       modifiedComponentIids: Array.from(modifiedComponentIids),
@@ -1224,16 +1232,17 @@ export async function saveProjectRev(req: Request, res: Response) {
     const partial = await (async () => {
       const bundle = getBundle({ data }, await getLastBundleVersion());
       const partialData = getBundle(req.body, await getLastBundleVersion());
-      bundle.map = L.pick(bundle.map, Object.keys(partialData.map)) as any;
+      bundle.map = pick(bundle.map, Object.keys(partialData.map)) as any;
       Object.keys(bundle.map).forEach((iid) => {
         const fields = Object.keys(partialData.map[iid]);
-        bundle.map[iid] = L.pick(bundle.map[iid], fields) as any;
+        bundle.map[iid] = pick(bundle.map[iid], fields) as any;
       });
       return JSON.stringify(bundle);
     })();
 
     const deletedIids: string[] = req.body.toDeleteIids || [];
-    const modifiedComponents: string[] = req.body.modifiedComponents || [];
+    const modifiedComponentIids: string[] =
+      req.body.modifiedComponentIids || [];
 
     await mgr.savePartialRevision({
       projectId,
@@ -1242,7 +1251,7 @@ export async function saveProjectRev(req: Request, res: Response) {
       deletedIids: JSON.stringify(deletedIids),
       branchId,
       projectRevisionId: rev.id,
-      modifiedComponentIids: modifiedComponents,
+      modifiedComponentIids: modifiedComponentIids,
     });
   } else {
     // If we're saving the entire bundle, it's better not to save it as an
@@ -1250,7 +1259,7 @@ export async function saveProjectRev(req: Request, res: Response) {
     await mgr.clearPartialRevisionsCacheForProject(projectId, branchId);
   }
 
-  res.json({ rev: _.omit(rev, "data") });
+  res.json({ rev: omit(rev, "data") });
 
   // We resolve the transaction first before we broadcast the new updates
   // to other players
@@ -1333,7 +1342,7 @@ export async function getProjectRev(req: Request, res: Response) {
     : undefined;
   const revisionNum = req.query.revisionNum;
   if (revisionNum !== undefined) {
-    console.log(`revisionNum is ${revisionNum}. ${L.isString(revisionNum)}`);
+    console.log(`revisionNum is ${revisionNum}. ${isString(revisionNum)}`);
   }
   const dontMigrateProject =
     !!req.query.dontMigrateProject &&
@@ -1427,7 +1436,7 @@ export async function getProjectRevWithoutData(req: Request, res: Response) {
   const projectId = req.params.projectId;
   const project = await mgr.getProjectById(projectId);
   req.promLabels.projectId = projectId;
-  const rev = _.omit(
+  const rev = omit(
     revisionId
       ? await mgr.getProjectRevisionById(
           projectId,
@@ -1601,7 +1610,7 @@ const _ProofSafeDelete: ProofSafeDelete = toOpaque({
 /**
  * Delete a project while performing clean-up of any associated external resources.
  *
- * Currently this just means freeing up domains from Vercel.
+ * Currently this just means freeing up domains from Verce
  *
  * Note that this is not reverted by restoreProject().
  */
@@ -1692,14 +1701,46 @@ async function getPkgWithDeps(
   await Promise.all(depPkgs.map((depPkg) => getMigratedBundle(depPkg)));
   const result = meta
     ? {
-        pkg: _.omit(pkg, "model"),
-        depPkgs: _.map(depPkgs, (v) => _.omit(v, "model")),
+        pkg: omit(pkg, "model"),
+        depPkgs: map(depPkgs, (v) => omit(v, "model")),
       }
     : {
         pkg,
         depPkgs,
       };
   return result;
+}
+
+export async function getPkgVersionByProjectId(req: Request, res: Response) {
+  const mgr = userDbMgr(req);
+  const { projectId } = req.params;
+  const { version } = parseQueryParams(req);
+  const pkg = await mgr.getPkgByProjectId(projectId);
+  assert(
+    pkg,
+    "No package found for projectId. Project has no published version"
+  );
+
+  if (!pkg) {
+    throw new BadRequestError("Missing sysname or projectId");
+  }
+
+  const bundleVersion = await getLastBundleVersion();
+  const versionStrings = await mgr.getPkgVersionStrings(pkg.id);
+  const chosenVersion =
+    version === "latest" ? versionStrings.slice(-1)[0] : version;
+  ensure(
+    versionStrings.includes(chosenVersion),
+    `Unknown version ${chosenVersion}`
+  );
+  const etag = `${pkg.id}-${chosenVersion}-${bundleVersion}`;
+
+  if (checkEtagSkippable(req, res, etag)) {
+    return;
+  }
+
+  const pkgVersion = await mgr.getPkgVersion(pkg.id, chosenVersion);
+  res.json(await getPkgWithDeps(mgr, pkgVersion, false));
 }
 
 export async function getPkgVersion(req: Request, res: Response) {
@@ -1782,7 +1823,7 @@ export async function publishProject(req: Request, res: Response) {
       {
         [projectId]: [...usedSiteFeatures],
       },
-      { pkg: _.omit(pkgVersion, "model") },
+      { pkg: omit(pkgVersion, "model") },
       undefined,
       {
         verifyMonthlyViews: req.devflags.verifyMonthlyViews,
@@ -1833,7 +1874,7 @@ export async function publishProject(req: Request, res: Response) {
   await broadcastProjectsMessage({
     room: `projects/${projectId}`,
     type: "publish",
-    message: { projectId: projectId, ..._.omit(pkgVersion, "model") },
+    message: { projectId: projectId, ...omit(pkgVersion, "model") },
   });
 }
 
@@ -1879,7 +1920,7 @@ export async function getPkgVersionPublishStatus(req: Request, res: Response) {
         }
       } catch (e) {
         // if we catch an error while decoding the url, we are going to consider that
-        // that the redirection is succesfull. The exception is going to be sent to
+        // that the redirection is succesful The exception is going to be sent to
         // sentry
         isRedirectingToLatest = true;
         Sentry.captureException(e);
@@ -1919,7 +1960,7 @@ export async function updatePkgVersion(req: Request, res: Response) {
   const branchId = req.body.branchId;
   const rawPkgVersion = req.body.pkg ?? {};
   // Note: The only thing users can modify from API is "tags" and "description" at the moment
-  const toMerge = _.pick(rawPkgVersion, ["tags", "description"]);
+  const toMerge = pick(rawPkgVersion, ["tags", "description"]);
   const oldPkgVersion = await mgr.getPkgVersion(pkgId);
   const pkgVersion = await mgr.updatePkgVersion(
     pkgId,
@@ -1944,7 +1985,7 @@ export async function updatePkgVersion(req: Request, res: Response) {
   await broadcastProjectsMessage({
     room: `projects/${projectId}`,
     type: "publish",
-    message: { projectId: projectId, ..._.omit(pkgVersion, "model") },
+    message: { projectId: projectId, ...omit(pkgVersion, "model") },
   });
 }
 
@@ -2010,7 +2051,7 @@ export async function revertToVersion(req: Request, res: Response) {
     dag.branches[branchId ?? MainBranchId] = pkgVersion.id;
   });
 
-  res.json({ rev: _.omit(rev, "data") });
+  res.json({ rev: omit(rev, "data") });
 
   // We resolve the transaction first before we broadcast the new updates
   // to other players
@@ -2379,176 +2420,6 @@ async function getLatestRevisionSynced(
   return (await mgr.tryGetLatestRevisionSynced(projectId))?.revision || 0;
 }
 
-// Security model - anyone with view permission can trigger publishProject.
-// If current user has edit permission, we share the edit permission with
-// current user.
-export async function publishCodeSandbox(req: Request, res: Response) {
-  const mgr = userDbMgr(req);
-  const projectId = req.params.projectId;
-  await mgr.checkProjectPerms(
-    projectId,
-    "editor",
-    "create or update sandbox",
-    false,
-    "Please make sure you have edit access to the Plasmic project before trying again."
-  );
-  req.promLabels.projectId = projectId;
-  const token = getCodesandboxToken();
-  const project = await mgr.getProjectById(projectId);
-  const sandboxInfo: Partial<CodeSandboxInfo> = req.body;
-  const scheme =
-    maybes(sandboxInfo)((x) => x.code)((x) => x.scheme)() || "blackbox";
-
-  // Create the sandbox if one doesn't exist
-  const sandboxId =
-    sandboxInfo.id ?? (await createNewSandbox(project.name, token));
-  const existingSandbox = (await getSandbox(token, sandboxId)) as ISandbox;
-  const version = getVersionTxt(existingSandbox);
-  const codesandboxOpts = getCodesandboxOpts(version);
-
-  const resolution: VersionResolution = await doResolveSync(
-    mgr,
-    mgr,
-    req.bundler,
-    projectId,
-    undefined,
-    semver.latestTag,
-    undefined,
-    true
-  );
-  // there should be no conflicts when we resolve from a single top-level project
-  assert(
-    resolution.conflicts.length === 0,
-    `${resolution.conflicts.length} conflicts`
-  );
-
-  // Create a new sandbox if not specified
-  let totalComponents = 0;
-  const projectMetas = [
-    ...resolution.projects,
-    ...resolution.dependencies,
-  ].reverse();
-  for (const projectMeta of projectMetas) {
-    const currProject = await mgr.getProjectById(projectMeta.projectId);
-    const { output, site } = await req.workerpool.exec("codegen", [
-      {
-        scheme: "blackbox",
-        connectionOptions: getConnection().options,
-        projectId: currProject.id,
-        exportOpts: codesandboxOpts.codegenOpts,
-        componentIdOrNames: projectMeta.componentIds,
-        maybeVersionOrTag: projectMeta.version,
-        indirect: currProject.id !== projectId,
-      },
-    ]);
-    totalComponents += output.components.length;
-
-    const iconAssets = doGenIcons(site, projectMeta.iconIds);
-
-    // get or create sandbox
-    await updateSandbox(
-      site,
-      token,
-      sandboxId,
-      codesandboxOpts,
-      {
-        ...output,
-        iconAssets,
-        styleConfig: getFormattedStyleConfig({
-          targetEnv: codesandboxOpts.codegenOpts.targetEnv,
-          stylesOpts: codesandboxOpts.codegenOpts.stylesOpts,
-        }),
-      },
-      scheme
-    );
-  }
-
-  // If the sandboxId hasn't been saved in the project yet
-  if (!sandboxInfo.id) {
-    // save new sandboxId
-    const codeSandboxInfos = [
-      ...(project.codeSandboxInfos || []),
-      {
-        id: sandboxId,
-        code: {
-          lang: "ts",
-          scheme: scheme,
-        },
-      } as CodeSandboxInfo,
-    ];
-    await mgr.updateProject({ id: project.id, codeSandboxInfos });
-    // Send an invite to all users with editor permission.
-    const perms = await mgr.getPermissionsForProject(project.id);
-    for (const perm of perms) {
-      if (accessLevelRank(perm.accessLevel) >= accessLevelRank("editor")) {
-        const email = perm.user?.email || perm.email;
-        if (email) {
-          await shareSandbox(token, sandboxId, email, "WRITE_CODE", true);
-        }
-      }
-    }
-    if (project.createdById) {
-      const creator = await mgr.tryGetUserById(project.createdById);
-      if (creator?.email) {
-        await shareSandbox(token, sandboxId, creator.email, "WRITE_CODE", true);
-      }
-    }
-  }
-  userAnalytics(req).track({
-    event: "Codesandbox codegen",
-    properties: {
-      projectId: project.id,
-      projectName: project.name,
-      numComponents: totalComponents,
-      scheme,
-      sandboxId,
-    },
-  });
-  res.json({ id: sandboxId });
-}
-
-export async function shareCodeSandbox(req: Request, res: Response) {
-  const mgr = userDbMgr(req);
-  await mgr.checkProjectPerms(
-    req.params.projectId,
-    "editor",
-    "create or update sandbox",
-    false,
-    "Please make sure you have edit access to the Plasmic project before trying again."
-  );
-  req.promLabels.projectId = req.params.projectId;
-  await mgr.getProjectById(req.params.projectId);
-  await shareSandbox(
-    getCodesandboxToken(),
-    req.body.sandboxId,
-    req.body.email,
-    "WRITE_CODE",
-    false
-  );
-  res.json({});
-}
-
-export async function detachCodeSandbox(req: Request, res: Response) {
-  const mgr = userDbMgr(req);
-  await mgr.checkProjectPerms(
-    req.params.projectId,
-    "editor",
-    "create or update sandbox",
-    false,
-    "Please make sure you have edit access to the Plasmic project before trying again."
-  );
-  req.promLabels.projectId = req.params.projectId;
-  const project = await mgr.getProjectById(req.params.projectId);
-  const codeSandboxInfos = (project.codeSandboxInfos || []).filter(
-    (x) => x.id !== req.body.sandboxId
-  );
-  await mgr.updateProject({
-    id: req.params.projectId,
-    codeSandboxInfos,
-  });
-  res.json({});
-}
-
 export async function getProjectMeta(req: Request, res: Response) {
   const projectId = req.params.projectId;
   const mgr = userDbMgr(req);
@@ -2556,7 +2427,10 @@ export async function getProjectMeta(req: Request, res: Response) {
   res.json(await makeProjectMeta(mgr, projectId));
 }
 
-async function makeProjectMeta(mgr: DbMgr, projectId: string) {
+async function makeProjectMeta(
+  mgr: DbMgr,
+  projectId: string
+): Promise<ApiProjectMeta> {
   const project = await mgr.getProjectById(projectId);
   const pkg = await mgr.getPkgByProjectId(projectId);
   const pkgVersion = pkg
@@ -2575,6 +2449,7 @@ async function makeProjectMeta(mgr: DbMgr, projectId: string) {
     workspaceId: project.workspaceId,
     hostUrl: project.hostUrl,
     lastPublishedVersion: pkgVersion?.version,
+    uiConfig: project.uiConfig,
     publishedVersions: allVersions.map((v) => ({
       version: v.version,
       description: v.description,
@@ -2583,7 +2458,7 @@ async function makeProjectMeta(mgr: DbMgr, projectId: string) {
       tags: v.tags,
     })),
     branches: branches.map((branch) =>
-      L.pick(branch, ["id", "name", "hostUrl", "status"])
+      pick(branch, ["id", "name", "hostUrl", "status"])
     ),
   };
 }
@@ -2591,12 +2466,16 @@ async function makeProjectMeta(mgr: DbMgr, projectId: string) {
 export async function updateProjectMeta(req: Request, res: Response) {
   const projectId = req.params.projectId;
   const mgr = userDbMgr(req);
-  console.log("Updating project hostUrl", projectId, req.body.hostUrl);
+  const metaFields = pick(
+    req.body,
+    "name",
+    "hostUrl",
+    "workspaceId",
+    "uiConfig"
+  );
   await mgr.updateProject({
     id: projectId,
-    ...(req.body.hostUrl ? { hostUrl: req.body.hostUrl } : {}),
-    ...(req.body.workspaceId ? { workspaceId: req.body.workspaceId } : {}),
-    ...(req.body.name ? { name: req.body.name } : {}),
+    ...metaFields,
   });
   res.json(await makeProjectMeta(mgr, projectId));
 }
@@ -2696,11 +2575,14 @@ export async function updateProjectData(req: Request, res: Response) {
         });
       }
       if (compReq.path) {
-        const path = tplMgr.getUniquePagePath(compReq.path);
-        ensure(
-          component.pageMeta,
-          "Unexpected nullish component.pageMeta"
-        ).path = path;
+        assert(isPageComponent(component), "Expected page component");
+
+        tplMgr.changePagePath(component, compReq.path);
+
+        const assignedPath = component.pageMeta.path;
+        warnings.push({
+          message: `Component ${component.name} was assigned path ${assignedPath} because the requested path ${compReq.path} was already used or invalid.`,
+        });
       }
     }
 
@@ -2870,8 +2752,7 @@ export async function postCommentInProject(req: Request, res: Response) {
   const { data } = uncheckedCast<PostCommentRequest>(req.body);
   await mgr.postCommentInProject({ projectId, branchId }, data);
 
-  // TODO: move side effects to somewhere else
-  const notifySubscribers = async () => {
+  async function collectUsersToNotify() {
     const project = await mgr.getProjectById(projectId as ProjectId);
     const perms = await mgr.getPermissionsForProject(projectId);
     const mates = await mgr.getUsersById(
@@ -2892,12 +2773,16 @@ export async function postCommentInProject(req: Request, res: Response) {
       allComments,
       (comment) => comment.data.threadId
     );
+
+    const toNotifyEmails = new Set<string>();
+
     for (const mate of mates) {
       const notificationSettings = await mgr.tryGetNotificationSettings(
         mate.id,
         toOpaque(projectId)
       );
-      const notifyAbout = notificationSettings?.notifyAbout ?? "none";
+      const notifyAbout =
+        notificationSettings?.notifyAbout ?? "mentions-and-replies";
       const isMentionOrReply = commentsByThread
         .get(data.threadId)
         ?.some((c) => c.createdById === mate.id);
@@ -2905,29 +2790,24 @@ export async function postCommentInProject(req: Request, res: Response) {
         notifyAbout === "all" ||
         (notifyAbout === "mentions-and-replies" && isMentionOrReply)
       ) {
-        await req.mailer.sendMail({
-          from: req.config.mailFrom,
-          to: mate.email,
-          bcc: req.config.mailBcc,
-          subject: `New comments on ${project.name}`,
-          html: `
-<p><strong>${fullName(author)}</strong> replied to a comment on <strong>${
-            project.name
-          }</strong>:</p>
-
-<pre style="font: inherit;">${escapeHTML(data.body)}</pre>
-
-<p><a href="${createProjectUrl(
-            req.config.host,
-            projectId
-          )}">Open project in Plasmic Studio</a> to reply or change notification settings</p>
-`.trim(),
-        });
+        toNotifyEmails.add(mate.email);
       }
     }
-  };
 
-  void notifySubscribers();
+    return {
+      emails: Array.from(toNotifyEmails),
+      project,
+    };
+  }
+
+  // We just collect the emails and project here, and send the emails after resolving the
+  // request. This is to avoid blocking the request on sending emails.
+  const { emails, project } = await collectUsersToNotify();
+
+  res.json(ensureType<PostCommentResponse>({}));
+
+  // Resolving the transaction before broadcasting the new comment to other players and sending emails
+  await req.resolveTransaction();
 
   await broadcastProjectsMessage({
     room: `projects/${projectId}`,
@@ -2935,7 +2815,17 @@ export async function postCommentInProject(req: Request, res: Response) {
     message: {},
   });
 
-  res.json(ensureType<PostCommentResponse>({}));
+  if (emails.length > 0) {
+    for (const email of emails) {
+      await sendCommentNotificationEmail(
+        req,
+        project,
+        author,
+        email,
+        escapeHTML(data.body)
+      );
+    }
+  }
 }
 
 export async function deleteCommentInProject(req: Request, res: Response) {

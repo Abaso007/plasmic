@@ -1,15 +1,7 @@
-import { isKnownArena } from "@/wab/classes";
+import { isKnownArena } from "@/wab/shared/model/classes";
 /** @format */
 
-import {
-  Arena,
-  ArenaFrame,
-  ComponentArena,
-  PageArena,
-  ProjectDependency,
-  Site,
-  TplNode,
-} from "@/wab/classes";
+import { DragInsertManager } from "@/wab/client/Dnd";
 import { getComponentPresets } from "@/wab/client/code-components/code-presets";
 import { InsertRelLoc } from "@/wab/client/components/canvas/view-ops";
 import { checkAndNotifyUnsupportedHostVersion } from "@/wab/client/components/modals/codeComponentModals";
@@ -30,10 +22,10 @@ import { Matcher } from "@/wab/client/components/view-common";
 import Button from "@/wab/client/components/widgets/Button";
 import { TextboxRef } from "@/wab/client/components/widgets/Textbox";
 import {
+  COMMANDS_MAP,
   CommandItem,
   CommandItemKey,
   CommandItemType,
-  COMMANDS_MAP,
 } from "@/wab/client/definitions/commands";
 import {
   AddItem,
@@ -54,24 +46,33 @@ import {
   filterFalsy,
   removeWhere,
   spawn,
-} from "@/wab/common";
+} from "@/wab/shared/common";
 import {
   getComponentDisplayName,
   isCodeComponent,
   isReusableComponent,
-} from "@/wab/components";
+} from "@/wab/shared/core/components";
 import {
   DEVFLAGS,
-  flattenInsertableIconGroups,
-  flattenInsertableTemplates,
   HostLessPackageInfo,
   InsertableTemplatesGroup,
-} from "@/wab/devflags";
-import { ImageAssetType } from "@/wab/image-asset-type";
-import { isIcon } from "@/wab/image-assets";
+  flattenInsertableIconGroups,
+  flattenInsertableTemplates,
+} from "@/wab/shared/devflags";
+import { ImageAssetType } from "@/wab/shared/core/image-asset-type";
+import { isIcon } from "@/wab/shared/core/image-assets";
 import { getArenaFrameDesc, getArenaFrames } from "@/wab/shared/Arenas";
-import { allComponents } from "@/wab/sites";
-import { SlotSelection } from "@/wab/slots";
+import {
+  Arena,
+  ArenaFrame,
+  ComponentArena,
+  PageArena,
+  ProjectDependency,
+  Site,
+  TplNode,
+} from "@/wab/shared/model/classes";
+import { allComponents } from "@/wab/shared/core/sites";
+import { SlotSelection } from "@/wab/shared/core/slots";
 import { useCombobox } from "downshift";
 import L from "lodash";
 import { observer } from "mobx-react";
@@ -230,6 +231,9 @@ export const Omnibar = observer(function Omnibar(props: OmnibarProps) {
       });
     } else if (item.type === AddItemType.fake) {
       await studioCtx.runFakeItem(item);
+    } else if (item.type === AddItemType.installable) {
+      // NOTE: Omnibar is an un-used feature, so the line below is just assumed to work
+      await DragInsertManager.install(studioCtx, item);
     } else if (L.values(CommandItemType).includes(item.type)) {
       await item.action(studioCtx);
     }
